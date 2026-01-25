@@ -1,0 +1,44 @@
+# RunTime Trainer Configuration: PRODUCTION SCALE (Higher Capacity)
+# Optimized after initial baseline beat.
+
+model:
+  d_model: 512           # Increased from 256
+  nhead: 8
+  num_layers: 6          # Increased from 4
+  dim_feedforward: 2048  # Increased from 1024
+  dropout: 0.1           # Sharpened from 0.2
+  max_races_to_consider: 30
+  max_seq_length: 329 
+
+training:
+  batch_size: 256
+  learning_rate: 0.0002  # scheduler will scale it back
+  weight_decay: 0.01
+  epochs: 50
+  num_workers: 4
+  pin_memory: true
+  use_amp: true
+  val_split: 0.1
+  random_seed: 42
+  smoothing_sigma_seconds: 3.0  # Tightened from 5.0 for higher precision
+  # Optional: save latest checkpoint every N steps (useful for sweeps / preemptible runs).
+  # Set to 0 to disable (default: end-of-epoch checkpoints only).
+  checkpoint_interval_steps: 0
+  # If true, also keep immutable step snapshots (can consume disk quickly on long runs).
+  keep_step_checkpoints: false
+
+data:
+  # For the standalone repo, default to the small sample shards.
+  # Point this at a full `training_splits/` directory for production-scale runs.
+  splits_dir: "../data/samples"
+  pace_lookup: "../data/pace_lookup.pickle"
+  num_files_to_load: 2 # Sample shards; increase for larger runs
+
+logging:
+  project_name: "RunTime-Clean"
+  run_name: "Production_Scale_v2_HighCap"
+  log_interval: 10
+  save_dir: "checkpoints_clean_prod" # Directories now nested by run_name in code
+  use_wandb: true
+  # DO NOT commit API keys. Prefer setting WANDB_API_KEY in the environment.
+  wandb_api_key: ""

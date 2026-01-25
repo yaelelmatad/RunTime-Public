@@ -1,0 +1,39 @@
+# data / large artifacts
+pipeline/training_splits/
+train/checkpoints*/
+train/wandb/
+wandb/
+
+# model checkpoints
+**/*.pt
+
+# generated PDFs
+White_Paper_Framework.pdf
+ICML_Abstract_Preview.pdf
+
+# slides (LaTeX build artifacts)
+slides/*.aux
+slides/*.log
+slides/*.nav
+slides/*.out
+slides/*.snm
+slides/*.toc
+slides/*.pdf
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+
+# keep the published slide deck
+!slides/RunTime_Slides.pdf
+
+# local paper-format drafts / template downloads (do not publish on GitHub Pages)
+jmlr_draft/
+
+# LaTeX build artifacts
+slides/RunTime_Slides.fdb_latexmk
+slides/RunTime_Slides.fls

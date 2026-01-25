@@ -1,0 +1,464 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{dolphin}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+
+\title[RunTime]{RunTime: Distributional Transformers for Irregular Event Sequences}
+\subtitle{A causal Transformer framework for distributional regression on event trajectories}
+\author{Yael S. Elmatad}
+\date{January 2026}
+
+\newcommand{\repo}{\texttt{github.com/yaelelmatad/RunTime-Public}}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{The problem}
+Many real-world systems are \textbf{event-driven}:
+\begin{itemize}
+  \item events arrive at \textbf{irregular intervals}
+  \item each event has context (environment/state) and an outcome
+  \item uncertainty matters (tails drive decisions)
+\end{itemize}
+\vspace{0.6em}
+\textbf{Typical regression} flattens history into a table and predicts a point estimate, losing cadence and uncertainty.
+\end{frame}
+
+\begin{frame}{Key idea (one sentence)}
+\textbf{Represent each event as a fixed token block}, quantize continuous variables into bins, treat \textbf{time deltas as tokens}, and train a \textbf{causal Transformer} to predict a \textbf{full PDF} over outcomes (not just a point).
+\end{frame}
+
+\begin{frame}{RunTime at a glance}
+\begin{itemize}
+  \item \textbf{Input}: tokenized trajectory (stride-based blocks) + irregular time tokens
+  \item \textbf{Model}: masked self-attention (causal)
+  \item \textbf{Output}: softmax distribution over discretized outcome bins
+  \item \textbf{Training}: cross-entropy with \textbf{seconds-aware Gaussian smoothing} targets
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Why predict a PDF (not just a point estimate)?}
+Point estimates hide risk:
+\begin{itemize}
+  \item multimodality and heavy tails collapse into a single number
+  \item confidence becomes invisible
+\end{itemize}
+\vspace{0.6em}
+RunTime outputs a \textbf{probability density function (PDF)} over discretized bins, enabling:
+\begin{itemize}
+  \item uncertainty-aware decisions
+  \item median/mean/mode point predictions as summaries
+  \item auditability via attention/activation inspection
+\end{itemize}
+\end{frame}
+
+\begin{frame}{The 11-token event block (grammar)}
+Each event is encoded as a fixed stride (11 tokens), mixing context, cadence, and target:
+\begin{itemize}
+  \item demographics: \texttt{age\_*}, \texttt{gen\_*}
+  \item context: \texttt{cond\_*}, \texttt{hum\_*}, \texttt{temp\_*}, \texttt{feels\_*}, \texttt{wind\_*}
+  \item distance: \texttt{distance\_name\_token\_*}
+  \item cadence: \texttt{d\_next\_*} (time since previous), \texttt{d\_fin\_*} (time to target)
+  \item outcome: \texttt{pace\_*} (the supervised target token)
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Example ``sentence'' (two-event trajectory)}
+\small
+Event 1 (history):
+\vspace{-0.2em}
+\begin{center}
+\texttt{[age\_35, gen\_M, cond\_Clear, hum\_45, temp\_55, feels\_55, wind\_5,}\\
+\texttt{distance\_name\_token\_10\_kilometers, d\_next\_12, d\_fin\_12, pace\_115]}
+\end{center}
+\vspace{0.3em}
+Event 2 (target context, pace is predicted):
+\vspace{-0.2em}
+\begin{center}
+\texttt{[age\_35, gen\_M, cond\_Rain, hum\_85, temp\_48, feels\_42, wind\_15,}\\
+\texttt{distance\_name\_token\_half\_marathon, d\_next\_0, d\_fin\_0, pace\_\textit{?}]}
+\end{center}
+\normalsize
+\vspace{0.3em}
+The model conditions on the full token sequence and predicts a \textbf{distribution} over the final \texttt{pace} token.
+\end{frame}
+
+\begin{frame}{Week-delta tokens: injecting cadence into the sequence}
+Instead of a single numeric feature, time is represented as tokens:
+\begin{itemize}
+  \item \texttt{d\_next}: time between adjacent events (cadence / recency)
+  \item \texttt{d\_fin}: time remaining to the final target event (horizon)
+\end{itemize}
+\vspace{0.6em}
+This makes irregularity explicit and lets attention learn non-linear decay / momentum effects.
+\end{frame}
+
+\begin{frame}{Missing data, imputation, and survival-style time-to-event}
+\begin{itemize}
+  \item Many forecasters assume a \textbf{regular grid}; irregularity is handled via \textbf{imputation/resampling}, which can \textbf{smear signal} and hide meaningful gaps.
+  \item RunTime treats \textbf{irregular event time} as first-class input (time tokens), so ``no observation'' can remain a \textbf{gap} rather than a fabricated value.
+  \item \textbf{Missingness tokens generalize beyond time}: you can represent absent covariates explicitly (e.g., \texttt{temp\_missing}, \texttt{humidity\_missing}) instead of imputing continuous values.
+    \begin{itemize}
+      \item This plays nicely with mixed representations: keep continuous-valued features continuous when present, but include a dedicated \texttt{*\_missing} token/state when absent.
+    \end{itemize}
+  \item For \textbf{time-to-next-event} tasks (survival/churn/retention), the discrete grammar can represent informative missingness:
+    \begin{itemize}
+      \item \texttt{time\_censored}: no future event within the observation window
+      \item \texttt{time\_missing}: next-event timing unknown but the entity remains active
+    \end{itemize}
+  \item This enables \textbf{distributional} time-to-event prediction (e.g., ``time-to-next-admission'' PDFs) with explicit handling of censoring.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Balanced quantization (binning strategy)}
+Continuous variables are discretized into bins with a simple goal: \textbf{maximize usable signal per token}.
+\begin{itemize}
+  \item use \textbf{balanced} (approximately equal-mass) bins rather than equal-width bins
+  \item yields higher entropy targets and avoids extremely sparse classes
+  \item bin widths adapt: narrow where data is dense, wider where data is sparse
+\end{itemize}
+\vspace{0.6em}
+The model predicts a PDF over pace bins; bin medians support mean/median/mode summaries.
+\end{frame}
+
+\begin{frame}{Quantization as regularization (and minimal tuning)}
+Quantization also acts as a structural regularizer:
+\begin{itemize}
+  \item reduces sensitivity to micro-noise in seconds-level outcomes
+  \item encourages learning transitions between meaningful states
+\end{itemize}
+\vspace{0.6em}
+Practical note: the core results here were achieved with \textbf{minimal optimization}:
+\begin{itemize}
+  \item bin boundaries were generated once (not heavily tuned)
+  \item the value comes from the architecture + training objective, not brittle heuristics
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Point estimate vs PDF: what changes in practice?}
+\textbf{A point estimate answers:} ``what number should I predict?''
+\vspace{0.3em}
+
+\textbf{A PDF answers:} ``how much probability mass lies in each outcome region?''
+\vspace{0.6em}
+
+That enables:
+\begin{itemize}
+  \item tail-aware decisions (thresholds, risk budgets, intervention timing)
+  \item calibrated confidence (wide vs narrow PDFs)
+  \item multiple decision-relevant summaries (mean/median/mode/quantiles)
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Monte Carlo trajectory simulation (cone of uncertainty)}
+Once the model outputs a PDF at each step, you can simulate plausible futures by \textbf{recursive sampling}.
+\vspace{0.6em}
+
+\textbf{At step \(t+1\)} sample:
+\[
+\tilde{y}_{t+1} \sim P(y \mid X_{\le t})
+\]
+
+\vspace{0.4em}
+Repeat this rollout for \(M\) samples to get a \textbf{family of trajectories}
+\(\{\mathcal{T}^{(m)}\}_{m=1}^{M}\), which forms a cone of uncertainty over long horizons.
+\vspace{0.6em}
+
+\textbf{What you can answer:}
+\begin{itemize}
+  \item 80\% interval (or any quantile band) for the state at a future horizon
+  \item probability of crossing a threshold (tail mass) within the next \(k\) steps
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Token order is a hidden hyperparameter (generative rollouts)}
+Auto-regressive generation defines a factorization:
+\[
+P(x_{1:n}) = \prod_{i=1}^{n} P(x_i \mid x_{<i})
+\]
+\vspace{0.4em}
+\begin{itemize}
+  \item If you generate a full future event block token-by-token, the \textbf{token ordering} implicitly chooses which conditionals you model (e.g., \(P(\text{temp}\mid\text{dist},\ldots)\) vs \(P(\text{dist}\mid\text{temp},\ldots)\)).
+  \item To avoid incoherent ``stories'' in rollouts:
+    \begin{itemize}
+      \item \textbf{Conditional generation (recommended)}: treat future covariates (distance, weather) as given; only sample the target (pace).
+      \item \textbf{Joint generation (if needed)}: decide what is exogenous vs endogenous and design/test token order as an explicit modeling choice.
+    \end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Seconds-aware Gaussian smoothing (targets)}
+Instead of ``hard'' one-hot targets, construct a soft target distribution \(T_i\) by integrating a Gaussian kernel over each bin interval:
+\[
+T_i = \int_{b_i^{start}}^{b_i^{end}} \frac{1}{\sigma\sqrt{2\pi}}
+e^{-\frac{1}{2}\left(\frac{x-y_{true}}{\sigma}\right)^2}\, dx
+\]
+\vspace{0.6em}
+This yields:
+\begin{itemize}
+  \item \textbf{ordinal awareness}: near misses are rewarded
+  \item smoother training dynamics + better calibrated PDFs
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Benchmark setup (high level)}
+\begin{itemize}
+  \item evaluation split is \textbf{entity-disjoint} (unseen runners)
+  \item report MAE in \textbf{seconds per mile}
+  \item compare against simple baselines + XGBoost tabular regressor
+\end{itemize}
+\vspace{0.6em}
+\textbf{XGBoost baseline (design choices)}: engineered pace stats (mean/EMA/min/max/volatility), cadence features, binned weather/context features, \textbf{continuous} distance\_miles from distance token, \textbf{one-hot} conditions, early stopping; artifacts written to an output directory.
+\end{frame}
+
+\begin{frame}{Continuous vs discretized: ``resolution disadvantage''}
+\begin{itemize}
+  \item \textbf{XGBoost} regresses directly to the \textbf{continuous} target (pace in seconds).
+  \item \textbf{RunTime} predicts a \textbf{PDF over discretized pace bins} (\(\sim 270+\) classes); point estimates come from mean/median/mode over bin medians.
+  \item \textbf{Chronos-2 comparison}: values remain \textbf{discretized tokens}, while irregular gaps are represented via \textbf{continuous time embeddings} (normalized time deltas).
+  \item Discretization is both a \textbf{constraint} and a \textbf{regularizer}: it reduces sensitivity to micro-noise and helps avoid collapsing to a safe average.
+  \item Despite this ``resolution disadvantage'', RunTime remains competitive with (or outperforms) the tuned tabular baseline.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Baseline signal hierarchy (what matters most)}
+\begin{itemize}
+  \item In the XGBoost baseline, \textbf{historical performance} (EMA + distance-specific averages) dominates feature importance (\(>75\%\)).
+  \item Environmental features (e.g., temperature/humidity) tend to contribute little (\(<2\%\)) relative to history.
+  \item This motivates RunTime's core thesis: modeling \textbf{system rhythm} (history + cadence) is the main driver of accuracy.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Results (runner-disjoint MAE)}
+\small
+\begin{table}
+\centering
+\begin{tabular}{l r}
+\toprule
+\textbf{Model} & \textbf{MAE (s)} \\
+\midrule
+Naive Mean & 54.19 \\
+Last Race Pace & 61.31 \\
+Riegel Formula & 50.76 \\
+XGBoost & 40.94 \\
+Transformer (Mean) & 37.67 \\
+\textbf{Transformer (Median)} & \textbf{37.10} \\
+Transformer (Mode) & 38.64 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\normalsize
+\vspace{0.3em}
+\textbf{Improvement vs XGBoost (median)}: \(1 - 37.10/40.94 \approx 9.35\%\) MAE reduction.
+\end{frame}
+
+\begin{frame}{How performance scales with history}
+\begin{center}
+\includegraphics[width=0.92\linewidth]{../figures/mae_vs_experience.png}
+\end{center}
+\end{frame}
+
+\begin{frame}{Training curves (W\&B exports)}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{../figures/wandb-figures/val_train_plots.png}
+\end{center}
+\end{frame}
+
+\begin{frame}{Validation curves (W\&B exports)}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{../figures/wandb-figures/val_mae_loss.png}
+\end{center}
+\end{frame}
+
+\begin{frame}{Percentile calibration histogram}
+\begin{center}
+\includegraphics[width=0.75\linewidth]{../figures/pace_percentiles.png}
+\end{center}
+Each bin spans 5 percentile points; n=10,000 predictions. Under perfect calibration every bin would hold ~500 entries, and the near-uniform counts (34–69) show the PDF percentiles are well balanced before deeper diagnostics.
+\end{frame}
+
+\begin{frame}{Quantile-quantile diagnostics}
+\setlength{\columnsep}{0pt}
+ \begin{columns}[T]
+  \begin{column}{0.45\linewidth}
+  {\small
+Q-Q plot: KS \(D=0.025\), \(p<0.001\); max deviation approximately 2.5pp.
+\vspace{0.3em}
+The straight diagonal alignment against Uniform(0,1) proves the distributional predictions stay balanced across bins.
+\vspace{0.3em}
+Deviations remain small even at the upper tail, explaining the low KS statistic.
+  }
+  \end{column}
+  \begin{column}{0.55\linewidth}
+  \includegraphics[width=0.96\linewidth,height=0.79\textheight,keepaspectratio]{../figures/qq.png}
+  \end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Calibration curve}
+ \begin{columns}[T]
+  \begin{column}{0.45\linewidth}
+  {\small
+Calibration curve: 50,000 threshold predictions keep deviations under 3 percentage points while the mean predicted (60.1\%) matches the observed (59.7\%).
+\vspace{0.3em}
+Every bin hugs the diagonal, so probability mass at each confidence level is trustworthy.
+\vspace{0.3em}
+This stability justifies acting on any quantile without systematic bias.
+  }
+  \end{column}
+  \begin{column}{0.55\linewidth}
+  \includegraphics[width=\linewidth]{../figures/calibration.png}
+  \end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Interpretability: RY runner PDFs}
+\begin{columns}[T]
+\begin{column}{0.45\linewidth}
+RY (n=9) shows moderate uncertainty. Shorter races yield tight PDFs (~45-58\%ile), while the marathon (\#9) becomes right-skewed with the actual outcome near 73.7\%ile, capturing distance-sensitive volatility without explicit distance modeling. The distributions therefore confirm that context-specific uncertainty pathways arise naturally from the tokenized input.
+\end{column}
+\begin{column}{0.55\linewidth}
+\includegraphics[width=\linewidth]{../figures/RY.png}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Interpretability: RW runner PDFs}
+\begin{columns}[T]
+\begin{column}{0.45\linewidth}
+RW (n=13) has the widest PDFs (0.015-0.025 peak), especially for marathons (16-100\%ile). Wide, asymmetric distributions and extreme outcomes such as race \#10 (100\%ile) and \#13 (15.6\%ile) still sit in the tails, illustrating that the model quantifies the athlete's inherent variability instead of collapsing to overconfident point estimates.
+\end{column}
+\begin{column}{0.55\linewidth}
+\includegraphics[width=\linewidth]{../figures/RW.png}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Mechanistic inspection (example view)}
+\begin{center}
+\includegraphics[width=0.94\linewidth]{../figures/activation_plots/seed42_batch0_MEDIUM_middle_15__i1_Dan_h3_w80103_bylayer_20260121_070521.png}
+\end{center}
+\vspace{-0.4em}
+\small
+By-layer token-type attention helps validate \emph{what} the model uses (cadence vs context vs history) as a function of depth.
+\normalsize
+\end{frame}
+
+\begin{frame}{Generalization beyond this dataset}
+While motivated by irregular event sequences, the recipe applies broadly to regression and forecasting:
+\begin{itemize}
+  \item define a tokenization (or block) for context
+  \item choose an output distribution (discretized bins)
+  \item train for distributional prediction (PDF) instead of point prediction
+\end{itemize}
+\vspace{0.6em}
+\textbf{Not just irregular events:}
+\begin{itemize}
+  \item \textbf{h=0 (no history)}: predict from static covariates only (standard regression)
+  \item \textbf{regular intervals}: apply on fixed grids (standard time series) and still output PDFs
+\end{itemize}
+\vspace{0.4em}
+This positions RunTime-style models as competitors to tabular baselines and classical forecasting (e.g., ARIMA), with the same distributional output interface.
+\end{frame}
+
+\begin{frame}{Immediate follow ups (from the paper)}
+\small
+Follow-ups to isolate which components drive the gains and validate generality beyond NYRR:
+\begin{itemize}
+  \item \textbf{Time-token ablation}: remove \texttt{d\_next} / \texttt{d\_fin} (or replace with a constant) to test performance without explicit gap knowledge
+  \item \textbf{Swapped-token grammar}: move \texttt{pace} earlier to avoid artificial terminal delta tokens
+  \item \textbf{Zero-history baseline (h=0)}: static covariates only under the same entity-disjoint split
+  \item \textbf{External validation}: apply to MIMIC-IV to predict a time-to-next-admission PDF (patient-disjoint split)
+\end{itemize}
+\normalsize
+\end{frame}
+
+\begin{frame}{Future application 1: system monitoring (health / maintenance)}
+\textbf{Goal:} move from static thresholds to individualized trajectory-aware risk.
+\vspace{0.5em}
+\begin{itemize}
+  \item tokens encode irregular measurements + context (state, environment, interventions)
+  \item output is a \textbf{PDF over next measurement} (or time-to-event via target inversion)
+  \item enables \textbf{early warnings} when observed values fall in low-probability regions
+\end{itemize}
+\vspace{0.4em}
+\textbf{Why PDF matters:} decisions often depend on tail risk (rare but costly excursions).
+\end{frame}
+
+\begin{frame}{Future application 2: engagement / churn}
+\textbf{Goal:} detect rhythm shifts before the terminal event (churn, dropout, relapse).
+\vspace{0.5em}
+\begin{itemize}
+  \item events: sessions, purchases, support tickets, refills, check-ins
+  \item cadence tokens capture \textbf{inter-arrival changes} and recency patterns
+  \item output PDF can target outcome (e.g., next action) or time-to-next action
+\end{itemize}
+\vspace{0.4em}
+\textbf{Why PDF matters:} interventions can be triggered when probability mass shifts into risky tails.
+\end{frame}
+
+\begin{frame}{Future application 3: hydrology \& energy (extremes)}
+\textbf{Goal:} forecast distributions over extremes, not just averages.
+\vspace{0.5em}
+\begin{itemize}
+  \item hydrology: PDFs over river height / levee-cross risk under irregular storm cadence
+  \item energy: PDFs over localized peak demand / transformer stress during heat events
+  \item evaluate by tail metrics (coverage at high quantiles), not only mean error
+\end{itemize}
+\vspace{0.4em}
+\textbf{Why PDF matters:} infrastructure cost is dominated by rare peaks and failures.
+\end{frame}
+
+\begin{frame}{Future application 4: markets (tail-risk forecasting)}
+\textbf{Goal:} predict distributions over drawdowns, volatility spikes, and jumps.
+\vspace{0.5em}
+\begin{itemize}
+  \item events: trades, regime changes, macro shocks; cadence can be irregular
+  \item output PDF can target \textbf{drawdown size} or \textbf{time to next shock}
+  \item supports stress testing and risk budgeting via quantiles/ES-like summaries
+\end{itemize}
+\vspace{0.4em}
+\textbf{Why PDF matters:} tail outcomes dominate hedging and capital requirements.
+\end{frame}
+
+\begin{frame}{Practical note on data availability}
+To prevent abuse (e.g., automated scraping / bulk pulling of underlying raw results), \textbf{not all acquisition / raw-data retrieval steps are included} in the public repo.
+\vspace{0.6em}
+\begin{itemize}
+  \item the repo remains runnable end-to-end on included sample shards
+  \item interested researchers can reach out for additional details as appropriate
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Repro \& pointers}
+\begin{itemize}
+  \item Technical writeup: \texttt{Technical\_Details.md}
+  \item Baselines: \texttt{train/Benchmark\_Baselines.py} (wrapper: \texttt{train/run\_xgboost\_tuning.sh})
+  \item Evaluation notebook: \texttt{train/Inspect\_Model\_Outputs.ipynb}
+  \item Activation inspection: \texttt{train/Inspect\_Model\_Activations.ipynb}
+\end{itemize}
+\vspace{0.8em}
+\textbf{Repo}: \repo
+\end{frame}
+
+\begin{frame}
+\centering
+\Huge Questions?
+\vspace{0.8em}
+\par\large \repo
+\end{frame}
+
+\end{document}
+
+
