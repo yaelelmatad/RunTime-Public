@@ -1,7 +1,7 @@
 # Runtime (RunTime): Distributional Transformers for Irregular Event Sequences
 [![DOI](https://zenodo.org/badge/1139424380.svg)](https://doi.org/10.5281/zenodo.18370743)
 
-**Cite this work:** Yael S. Elmatad, *RunTime: Distributional Transformers for Irregular Event Sequences*, Zenodo (2024). https://doi.org/10.5281/zenodo.18370743
+**Cite this work:** Yael S. Elmatad, *RunTime: Distributional Transformers for Irregular Event Sequences*, Zenodo (2026). https://doi.org/10.5281/zenodo.18370743
 
 This repo contains **RunTime**: a causal Transformer approach for **distributional regression on irregular event sequences** (TPP-aligned). It represents each event as a fixed-stride “grammar” block, treats **time deltas as tokens**, and trains with **Gaussian-integrated soft targets** so the model predicts a full probability distribution (PDF) over outcomes rather than only a point estimate.
 
