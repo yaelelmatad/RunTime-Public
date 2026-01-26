@@ -3,7 +3,30 @@
 
 **Cite this work:** Yael S. Elmatad, *RunTime: Distributional Transformers for Irregular Event Sequences*, Zenodo (2026). https://doi.org/10.5281/zenodo.18370743
 
-This repo contains **RunTime**: a causal Transformer approach for **distributional regression on irregular event sequences** (TPP-aligned). It represents each event as a fixed-stride “grammar” block, treats **time deltas as tokens**, and trains with **Gaussian-integrated soft targets** so the model predicts a full probability distribution (PDF) over outcomes rather than only a point estimate.
+RunTime is a causal Transformer for **calibrated distributional forecasting on irregular event sequences** (TPP-aligned). Unlike standard approaches that rely on continuous embeddings or point estimates, RunTime combines:
+
+- **Selective discretization as structural regularization** (environmentalistates are binned while time deltas stay continuous)
+- **Gaussian-integrated soft targets** (precise label smoothing via error-function integration across bin boundaries)
+- **Calibrated probability distributions** (Q-Q analysis yields a KS statistic D=0.025, i.e., ≤2.5 percentage-point deviation from perfect uniform percentiles)
+
+This enables uncertainty-aware predictions while preserving interpretability through attention inspection.
+
+## Key Innovations
+
+1. **Hybrid discrete-continuous grammar**: Environmental tokens (temperature, humidity, pace) are discretized to capture regime-specific behavior like trees, while inter-event gaps remain continuous so attention stays elastic across irregular cadences.
+2. **Gaussian-smoothed soft targets**: Instead of Chronos-style hard one-hot labels or uniform label smoothing, RunTime integrates a Gaussian kernel across each bin using the error function, preserving ordinality and enabling sub-bin interpolation.
+3. **Calibrated distributional predictions**: The model predicts full PDFs, not just points. Quantile-quantile diagnostics show the predicted percentiles stay within 2.5 percentage points of the uniform CDF (KS D=0.025).
+4. **Mechanistic interpretability**: Attention snapshots show time-delta tokens attracting dominant mass when uncertainty is high, providing interpretable insight into the learned rhythm.
+
+## Why Discretization Over Continuous Embeddings?
+
+Recent work (Gorishniy et al. 2021; Shwartz-Ziv & Armon 2022; Grinsztajn et al. 2022) shows that tabular Transformers consuming continuous embeddings still fall behind gradient-boosted trees because trees inherently perform implicit binning via splits, creating sharp regime boundaries that smooth networks average out. RunTime adopts explicit discretization but pairs it with:
+
+- **Balanced quantization** (bins hold roughly uniform probability mass, not uniform width)
+- **Gaussian-integrated soft targets** (smooth gradients despite the discrete vocabulary)
+- **Calibration-first training** (distributional fidelity takes priority over single-number accuracy)
+
+This lets RunTime model regime-specific behavior like trees while keeping the Transformer differentiable and interpretable.
 
 **GitHub repo:** [yaelelmatad/RunTime-Public](https://github.com/yaelelmatad/RunTime-Public)
 
