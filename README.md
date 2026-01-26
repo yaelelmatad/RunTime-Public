@@ -1,3 +1,4 @@
+[![Work in progress](https://img.shields.io/badge/status-work_in_progress-orange)](#)
 # Runtime (RunTime): Distributional Transformers for Irregular Event Sequences
 [![DOI](https://zenodo.org/badge/1139424380.svg)](https://doi.org/10.5281/zenodo.18370743)
 
@@ -5,7 +6,7 @@
 
 RunTime is a causal Transformer for **calibrated distributional forecasting on irregular event sequences** (TPP-aligned). Unlike standard approaches that rely on continuous embeddings or point estimates, RunTime combines:
 
-- **Selective discretization as structural regularization** (environmentalistates are binned while time deltas stay continuous)
+- **Selective discretization as structural regularization** (environmental states are binned while time deltas stay continuous)
 - **Gaussian-integrated soft targets** (precise label smoothing via error-function integration across bin boundaries)
 - **Calibrated probability distributions** (Q-Q analysis yields a KS statistic D=0.025, i.e., ≤2.5 percentage-point deviation from perfect uniform percentiles)
 
@@ -13,7 +14,7 @@ This enables uncertainty-aware predictions while preserving interpretability thr
 
 ## Key Innovations
 
-1. **Hybrid discrete-continuous grammar**: Environmental tokens (temperature, humidity, pace) are discretized to capture regime-specific behavior like trees, while inter-event gaps remain continuous so attention stays elastic across irregular cadences.
+1. **Hybrid quantized-discrete grammar**: Environmental tokens (temperature, humidity, pace) are discretized to capture regime-specific behavior like trees, while inter-event gaps remain unquantized so attention stays elastic across irregular cadences.
 2. **Gaussian-smoothed soft targets**: Instead of Chronos-style hard one-hot labels or uniform label smoothing, RunTime integrates a Gaussian kernel across each bin using the error function, preserving ordinality and enabling sub-bin interpolation.
 3. **Calibrated distributional predictions**: The model predicts full PDFs, not just points. Quantile-quantile diagnostics show the predicted percentiles stay within 2.5 percentage points of the uniform CDF (KS D=0.025).
 4. **Mechanistic interpretability**: Attention snapshots show time-delta tokens attracting dominant mass when uncertainty is high, providing interpretable insight into the learned rhythm.
