@@ -165,6 +165,17 @@ bash train/run_xgboost_tuning.sh
 bash train/run_runtime_train.sh
 ```
 
+## Dataset Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total individuals | 600K |
+| Total training examples | 5M |
+| Average races per runner | ≈8 |
+| Training set | 270K individuals (2.25M examples) |
+| Validation set | 30K individuals (250K examples) |
+| Test set | 60K individuals (500K predictions) |
+
 ## Performance summary
 
 Filtered run-time metrics appear in `Technical_Details.md`; please refer to that document for the full MAE table.
