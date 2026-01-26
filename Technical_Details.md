@@ -322,7 +322,7 @@ The model receives the first **21 tokens** as the input sequence. The **22nd tok
 
 ## 4. Validation Benchmark: A Proof-of-Concept
 
-To prove the RunTime architecture, a high-fidelity dataset was used consisting of millions of unique events across **over 600,000 distinct trajectories**, resulting in **over 5M million individual training examples**. 
+To prove the RunTime architecture, a high-fidelity dataset was used consisting of millions of unique events across **over 600,000 distinct trajectories**, resulting in **over 5 million individual training examples**.
 
 
 #### Qualitative Outputs & Mechanistic Inspection
