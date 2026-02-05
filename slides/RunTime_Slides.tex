@@ -377,7 +377,7 @@ This positions RunTime-style models as competitors to tabular baselines and clas
 Follow-ups to isolate which components drive the gains and validate generality beyond NYRR:
 \begin{itemize}
   \item \textbf{Time-token ablation}: remove \texttt{d\_next} / \texttt{d\_fin} (or replace with a constant) to test performance without explicit gap knowledge
-  \item \textbf{Swapped-token grammar}: pace already precedes cadence in the production stride to prevent leakage; we keep the original order as an ablation.
+  \item \textbf{Swapped-token grammar}: pace now precedes cadence in the production stride to prevent leakage; the original order is no longer used.
   \item \textbf{Zero-history baseline (h=0)}: static covariates only under the same entity-disjoint split
   \item \textbf{External validation}: apply to MIMIC-IV to predict a time-to-next-admission PDF (patient-disjoint split)
 \end{itemize}
