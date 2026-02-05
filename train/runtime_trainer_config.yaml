@@ -8,7 +8,7 @@ model:
   dim_feedforward: 2048  # Increased from 1024
   dropout: 0.1           # Sharpened from 0.2
   max_races_to_consider: 30
-  max_seq_length: 329 
+  max_seq_length: 327
 
 training:
   batch_size: 256

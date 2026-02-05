@@ -564,7 +564,7 @@ While the initial laboratory validation of **RunTime** has proven the architectu
 
 ### Appendix: Technical Implementation
 *   **Architecture**: RunTime (Decoder-only Transformer: 6 layers, 8 heads, 512-dim embeddings).
-*   **Context Window**: 329 tokens (supporting up to 30 historical event blocks).
+*   **Context Window**: 327 tokens (supporting up to 30 historical event blocks after dropping the misc week-0 tokens that no longer enter the stride sequence).
 *   **Regularization**: 0.1 Dropout, 1e-2 Weight Decay.
 *   **Loss**: Cross-Entropy over Gaussian-integrated soft targets ($\sigma = 3.0$ seconds).
 *   **Optimizer**: AdamW ($lr = 2e-4$) with `ReduceLROnPlateau` scheduler.

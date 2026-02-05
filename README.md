@@ -23,6 +23,8 @@ This enables uncertainty-aware predictions while preserving interpretability thr
 
 Recent work (Gorishniy et al. 2021; Shwartz-Ziv & Armon 2022; Grinsztajn et al. 2022) shows that tabular Transformers consuming continuous embeddings still fall behind gradient-boosted trees because trees inherently perform implicit binning via splits, creating sharp regime boundaries that smooth networks average out. RunTime adopts explicit discretization but pairs it with:
 
+Context windows are capped at 327 tokens (the final “week 0” placeholders are dropped) so strides remain aligned without leaking future cadence.
+
 - **Balanced quantization** (bins hold roughly uniform probability mass, not uniform width)
 - **Gaussian-integrated soft targets** (smooth gradients despite the discrete vocabulary)
 - **Calibration-first training** (distributional fidelity takes priority over single-number accuracy)
