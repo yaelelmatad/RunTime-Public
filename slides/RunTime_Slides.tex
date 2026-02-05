@@ -69,8 +69,8 @@ Each event is encoded as a fixed stride (11 tokens), mixing context, cadence, an
   \item demographics: \texttt{age\_*}, \texttt{gen\_*}
   \item context: \texttt{cond\_*}, \texttt{hum\_*}, \texttt{temp\_*}, \texttt{feels\_*}, \texttt{wind\_*}
   \item distance: \texttt{distance\_name\_token\_*}
-  \item cadence: \texttt{d\_next\_*} (time since previous), \texttt{d\_fin\_*} (time to target)
   \item outcome: \texttt{pace\_*} (the supervised target token)
+  \item cadence: \texttt{d\_next\_*} (time since previous), \texttt{d\_fin\_*} (time to target)
 \end{itemize}
 \end{frame}
 
@@ -80,14 +80,14 @@ Event 1 (history):
 \vspace{-0.2em}
 \begin{center}
 \texttt{[age\_35, gen\_M, cond\_Clear, hum\_45, temp\_55, feels\_55, wind\_5,}\\
-\texttt{distance\_name\_token\_10\_kilometers, d\_next\_12, d\_fin\_12, pace\_115]}
+\texttt{distance\_name\_token\_10\_kilometers, pace\_115, d\_next\_12, d\_fin\_12]}
 \end{center}
 \vspace{0.3em}
 Event 2 (target context, pace is predicted):
 \vspace{-0.2em}
 \begin{center}
 \texttt{[age\_35, gen\_M, cond\_Rain, hum\_85, temp\_48, feels\_42, wind\_15,}\\
-\texttt{distance\_name\_token\_half\_marathon, d\_next\_0, d\_fin\_0, pace\_\textit{?}]}
+\texttt{distance\_name\_token\_half\_marathon, pace\_\textit{?}, d\_next\_0, d\_fin\_0]}
 \end{center}
 \normalsize
 \vspace{0.3em}
@@ -377,7 +377,7 @@ This positions RunTime-style models as competitors to tabular baselines and clas
 Follow-ups to isolate which components drive the gains and validate generality beyond NYRR:
 \begin{itemize}
   \item \textbf{Time-token ablation}: remove \texttt{d\_next} / \texttt{d\_fin} (or replace with a constant) to test performance without explicit gap knowledge
-  \item \textbf{Swapped-token grammar}: move \texttt{pace} earlier to avoid artificial terminal delta tokens
+  \item \textbf{Swapped-token grammar}: pace already precedes cadence in the production stride to prevent leakage; we keep the original order as an ablation.
   \item \textbf{Zero-history baseline (h=0)}: static covariates only under the same entity-disjoint split
   \item \textbf{External validation}: apply to MIMIC-IV to predict a time-to-next-admission PDF (patient-disjoint split)
 \end{itemize}

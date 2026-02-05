@@ -10,11 +10,11 @@ RunTime is a causal Transformer for **calibrated distributional forecasting on i
 - **Gaussian-integrated soft targets** (precise label smoothing via error-function integration across bin boundaries)
 - **Calibrated probability distributions** (Q-Q analysis yields a KS statistic D=0.025, i.e., ≤2.5 percentage-point deviation from perfect uniform percentiles)
 
-This enables uncertainty-aware predictions while preserving interpretability through attention inspection.
+This enables uncertainty-aware predictions while preserving interpretability through attention inspection. Every event block now emits the pace token before the time-delta tokens, so the model cannot peek at future cadence signals before predicting pace.
 
 ## Key Innovations
 
-1. **Hybrid quantized-discrete grammar**: Environmental tokens (temperature, humidity, pace) are discretized to capture regime-specific behavior like trees, while inter-event gaps remain unquantized so attention stays elastic across irregular cadences.
+1. **Hybrid quantized-discrete grammar**: Environmental tokens (temperature, humidity, pace) are discretized to capture regime-specific behavior like trees, while inter-event gaps remain unquantized so attention stays elastic across irregular cadences; swapping the pace/time order prevents leakage.
 2. **Gaussian-smoothed soft targets**: Instead of Chronos-style hard one-hot labels or uniform label smoothing, RunTime integrates a Gaussian kernel across each bin using the error function, preserving ordinality and enabling sub-bin interpolation.
 3. **Calibrated distributional predictions**: The model predicts full PDFs, not just points. Quantile-quantile diagnostics show the predicted percentiles stay within 2.5 percentage points of the uniform CDF (KS D=0.025).
 4. **Mechanistic interpretability**: Attention snapshots show time-delta tokens attracting dominant mass when uncertainty is high, providing interpretable insight into the learned rhythm.

@@ -300,7 +300,7 @@ The effect is testable (replace half your samples with average imputations and t
 We can also treat **right-censoring** as a categorical signal. In survival analysis (Cox 1972; Katzman et al. 2018; Lee et al. 2018) censoring flags identify instances where an outcome has not yet occurred. RunTime can encode a `time_censored` token (or `time_censored_180d`) alongside the usual `weeks_since_last` gap, so the model knows the pair is “still at risk” rather than pretending the next event is simply far in the future. This mirrors the classic survival setup, yet generalizes it to irregular attention-based sequences rather than proportional hazards.
 
 #### The 11-Token Event Block Grammar
-The core of RunTime’s temporal reasoning lies in its consistent **stride-based grammar**. Every interaction in the trajectory is encapsulated in a fixed 11-token block. This structure allows the Transformer's self-attention mechanism to perform **cross-event feature mapping**. 
+The core of RunTime’s temporal reasoning lies in its consistent **stride-based grammar**. Every interaction in the trajectory is encapsulated in a fixed 11-token block where the predicted **pace** token now precedes the temporal deltas, preventing future cadence leakage. This structure allows the Transformer's self-attention mechanism to perform **cross-event feature mapping**. 
 
 For example, when the model predicts the outcome for the 10th event, it can attend specifically to the temperature token of the 3rd event. By maintaining this rigid stride, RunTime learns a positional syntax—it understands that a token at index $11n + 4$ always represents the thermal environment of the $n$-th historical event. This allows the model to capture complex, long-range dependencies, such as how an entity performs in humid conditions relative to its performance in similar conditions two years prior.
 
@@ -310,10 +310,10 @@ In a heterogeneous extension, where event types and censoring are explicitly mod
 To visualize the grammar, consider a trajectory consisting of two events. Each event is represented by a block of 11 tokens. 
 
 **Event 1 (Historical Context):**
-`[age_35, gen_M, cond_Clear, hum_45, temp_55, feels_55, wind_5, dist_10k, d_next_12, d_fin_12, pace_115]`
+`[age_35, gen_M, cond_Clear, hum_45, temp_55, feels_55, wind_5, dist_10k, pace_115, d_next_12, d_fin_12]`
 
 **Event 2 (Target Context):**
-`[age_35, gen_M, cond_Rain, hum_85, temp_48, feels_42, wind_15, dist_half, d_next_0, d_fin_0, pace_142]`
+`[age_35, gen_M, cond_Rain, hum_85, temp_48, feels_42, wind_15, dist_half, pace_142, d_next_0, d_fin_0]`
 
 **The Input/Target Split:**
 The model receives the first **21 tokens** as the input sequence. The **22nd token** (`pace_142`) serves as the target. By processing this sequence, the attention mechanism simultaneously weighs the 12-week gap (`d_next_12`), the increased distance (`dist_half`), and the deteriorating weather (`cond_Rain`) to generate the probability distribution for the final outcome.
@@ -548,13 +548,7 @@ While the initial laboratory validation of **RunTime** has proven the architectu
 
 *   **Time-Token Ablation (Remove Temporal Deltas Entirely)**: Run a controlled ablation study where the temporal delta tokens (`d_next`, `d_fin`) are removed (or replaced with a constant placeholder) to quantify how much of RunTime’s performance is attributable to explicit cadence tokens versus the remaining contextual and historical performance tokens.  Age is also removed except for the age at target race to avoid age becoming a proxy time token.
 *   **Sequence-Shuffled Time Ablation**: Repeat the time-token ablation but randomly shuffle the stride order so cadence must be recovered without relying on fixed positions, isolating whether degradation tracks the tokens themselves or the broader sequence structure.
-*   **Swapped-Token Grammar (Predict Pace Without Artificial Terminal Deltas)**: Train a swapped-token variant where each 11-token event block is reordered to:
-    *   `[features] [pace] [time_to_next] [time_to_final]`
-    
-    and where the final target context is represented as:
-    *   `[features]` (input) → predict `[pace]` (target),
-    
-    eliminating the need to append artificial `d_next_0` / `d_fin_0` tokens for the terminal block. This tests whether moving `pace` earlier in the block improves alignment and removes a syntactic artifact from the sequence.
+*   **Swapped-Token Grammar (pace before cadence as the new default)**: Each 11-token event block now emits the `pace` token before the temporal deltas (`d_next`, `d_fin`), preventing the model from learning future-gap leakage. We continue to compare this swapped order against the original pacing-cadence order as a sanity check.
 
 *   **Zero-History Baseline (Static Covariates Only)**: Train and evaluate a model that predicts the target outcome using only the **current covariates** (no prior-event history at all), under the same entity-disjoint split discipline. This provides an apples-to-apples comparison against the tabular **XGBoost** baseline and isolates the incremental value of sequential context and cadence tokens beyond static features.
 
