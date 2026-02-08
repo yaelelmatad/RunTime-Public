@@ -335,12 +335,11 @@ The following plots provide qualitative validation of distributional behavior an
 #### Example Distributions (Qualitative)
 
 
-<figure>
-  <img src="./figures/YE.png" alt="YE runner PDFs" width="100%">
-  <img src="./figures/RY.png" alt="RY runner PDFs" width="100%">
-  <img src="./figures/RW.png" alt="RW runner PDFs" width="100%">
-  <figcaption>Individual runner trajectories with predicted probability distributions. Each panel shows the model’s predicted PDF (blue curve) and actual outcome (red dashed line) for consecutive races, sorted by history length (h = number of prior races in context). Yellow boxes indicate the percentile of the actual outcome within the predicted PDF. All plots use a common y-axis scale (0.000-0.045 probability density) for cross-runner comparison.</figcaption>
-</figure>
+![YE runner PDFs](./figures/YE.png)
+
+![RY runner PDFs](./figures/RY.png)
+
+![RW runner PDFs](./figures/RW.png)
 
 *Figure: Individual runner trajectories with predicted probability distributions. Each panel shows the model's predicted PDF (blue curve) and actual outcome (red dashed line) for consecutive races, sorted by history length (h = number of prior races in context). Yellow boxes indicate the percentile of the actual outcome within the predicted PDF. All plots use a common y-axis scale (0.000-0.045 probability density) for cross-runner comparison.*
 
@@ -437,20 +436,17 @@ The production-scale RunTime model was trained for **30 epochs** (wall-clock tim
 ***
 To validate that RunTime produces well-calibrated probability distributions rather than merely accurate point estimates, we perform two complementary calibration analyses. First, we use a Q-Q (quantile-quantile) plot to test whether actual outcomes are uniformly distributed across their predicted PDFs—a global test of distributional calibration. Second, we construct a calibration curve (reliability diagram) to verify that predicted probabilities match observed frequencies—a more interpretable bin-wise validation. Together, these diagnostics confirm that RunTime's distributional predictions are both statistically sound and practically reliable.
 
-<figure>
-  <img src="./figures/QQ-curves-new.png" alt="Quantile-quantile plot" width="100%">
-  <figcaption>Quantile-quantile plot comparing observed outcome percentiles to the theoretical Uniform(0,1) distribution (n=250,000 test predictions). Percentiles stay consistently near the diagonal, with the Kolmogorov-Smirnov statistic reaching D=0.0045 after selecting the adaptive-$\sigma$ checkpoint that minimizes KS; maximum deviations remain below 0.5 percentage points, underscoring how well the RunTime PDF matches uniform percentiles.</figcaption>
-</figure>
+![Quantile-quantile plot](./figures/QQ-curves-new.png)
 
-<figure>
-  <img src="./figures/quantiles_calibration.png" alt="Quantile calibration plot" width="100%">
-  <figcaption>Quantile calibration highlighting where the predicted softmax mass concentrates for n=50,000 evaluation points (5k per quantile bin). Each curve maps the predicted quantile against the empirical quantile, and the ±3 percentage-point band shows the deviations remain modest across the support. The same data previously summarized by the “actual outcome percentile histogram” now appears along this curve, confirming that empirical percentiles stay near the diagonal and roughly uniform across bins.</figcaption>
-</figure>
+*Figure: Quantile-quantile plot comparing observed outcome percentiles to the theoretical Uniform(0,1) distribution (n=250,000 test predictions). Percentiles stay consistently near the diagonal, with the Kolmogorov-Smirnov statistic reaching 0.0045 after selecting the adaptive-$\sigma$ checkpoint that minimizes KS; maximum deviations remain below 0.5 percentage points, underscoring how well the RunTime PDF matches uniform percentiles.*
 
-<figure>
-  <img src="./figures/calib-8.png" alt="Calibration sweep chart" width="100%">
-  <figcaption>Calibration sweep for n=250,000 evaluation points showing how each adaptive-$\sigma$ configuration behaves across the percentile spectrum. Even the model selected for best KS stays within ±3 percentage points of the ideal diagonal, confirming the PDF remains well-centered even when comparing multiple variants.</figcaption>
-</figure>
+![Quantile calibration plot](./figures/quantiles_calibration.png)
+
+*Figure: Quantile calibration highlighting where the predicted softmax mass concentrates for n=50,000 evaluation points (5k per quantile bin). Each curve maps the predicted quantile against the empirical quantile, and the ±3 percentage-point band shows the deviations remain modest across the support. The same data previously summarized by the “actual outcome percentile histogram” now appears along this curve, confirming that empirical percentiles stay near the diagonal and roughly uniform across bins.*
+
+![Calibration sweep chart](./figures/calib-8.png)
+
+*Figure: Calibration sweep for n=250,000 evaluation points showing how each adaptive-$\sigma$ configuration behaves across the percentile spectrum. Even the model selected for best KS stays within ±3 percentage points of the ideal diagonal, confirming the PDF remains well-centered even when comparing multiple variants.*
 
 **Table 4: Calibration sweep leaderboard (seconds).** Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally.
 
