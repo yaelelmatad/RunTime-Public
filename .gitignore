@@ -37,3 +37,10 @@ jmlr_draft/
 # LaTeX build artifacts
 slides/RunTime_Slides.fdb_latexmk
 slides/RunTime_Slides.fls
+
+# LaTeX aux files
+paper/RunTime_Tabular_Main.aux
+paper/RunTime_Tabular_Main.bbl
+paper/RunTime_Tabular_Main.blg
+paper/RunTime_Tabular_Main.log
+paper/RunTime_Tabular_Main.out

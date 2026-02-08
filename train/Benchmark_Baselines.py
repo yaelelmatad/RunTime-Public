@@ -1,13 +1,7 @@
+import torch
 import random
-try:
-    import numpy as np
-    import pandas as pd
-    from sklearn.metrics import mean_absolute_error
-except ModuleNotFoundError:
-    # Allow `--help` / argparse usage even when ML deps aren't installed.
-    np = None
-    pd = None
-    mean_absolute_error = None
+import numpy as np
+import pandas as pd
 from dataclasses import dataclass
 from typing import List, Tuple
 import sys
@@ -16,6 +10,7 @@ import pickle
 import gzip
 import os 
 import glob
+from sklearn.metrics import mean_absolute_error
 
 # --- Distance token -> numeric miles (mirrors Runtime/train/Inspect_Model_Outputs.ipynb) ---
 DISTANCE_MAP_MILES = {
@@ -39,7 +34,7 @@ DISTANCE_MAP_MILES = {
     'distance_name_token_marathon': 26.2188,
 }
 
-def _sample_xgb_params(rng: "np.random.RandomState"):
+def _sample_xgb_params(rng: np.random.RandomState):
     """
     Random search over a tight-ish space targeted at this dataset.
     Keeps feature engineering unchanged; only tunes the model.
@@ -224,10 +219,8 @@ if __name__ == '__main__':
     parser.add_argument('file_paths', metavar='FILE', type=str, nargs='*',
                         help="One or more streamed-pickle gzip files (runners_split_*.pkl.gz).")
     parser.add_argument('--splits_glob', type=str,
-                        default=None,
-                        help=("Glob for split shards to load when no FILE paths are provided. "
-                              "If omitted, will auto-detect pipeline/training_splits (RunTime-Full) "
-                              "or fall back to data/samples (RunTime-Public)."))
+                        default=os.path.join("Runtime", "pipeline", "training_splits", "runners_split_*.pkl.gz"),
+                        help="Glob for split shards to load when no FILE paths are provided.")
     parser.add_argument('--max_files', type=int, default=50,
                         help="When using --splits_glob, load at most this many shards (sorted).")
     parser.add_argument('--output_dir', type=str, default='.',
@@ -248,18 +241,9 @@ if __name__ == '__main__':
     # If no explicit shard paths are provided, default to first N shards from the glob.
     file_paths = list(args.file_paths) if args.file_paths else []
     if len(file_paths) == 0:
-        # Auto-detect repo layout if caller didn't supply --splits_glob:
-        # - RunTime-Full has: pipeline/training_splits/runners_split_*.pkl.gz
-        # - RunTime-Public has: data/samples/*.pkl.gz
-        splits_glob = args.splits_glob
-        if not splits_glob:
-            splits_glob = os.path.join("pipeline", "training_splits", "runners_split_*.pkl.gz")
-            if not glob.glob(splits_glob):
-                splits_glob = os.path.join("data", "samples", "*.pkl.gz")
-
-        candidates = sorted(glob.glob(splits_glob))
+        candidates = sorted(glob.glob(args.splits_glob))
         if not candidates:
-            print(f"ERROR: no files found for --splits_glob: {splits_glob}")
+            print(f"ERROR: no files found for --splits_glob: {args.splits_glob}")
             sys.exit(1)
         if args.max_files is not None and args.max_files > 0:
             candidates = candidates[: int(args.max_files)]

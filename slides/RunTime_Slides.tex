@@ -63,14 +63,14 @@ RunTime outputs a \textbf{probability density function (PDF)} over discretized b
 \end{itemize}
 \end{frame}
 
-\begin{frame}{The 11-token event block (grammar)}
-Each event is encoded as a fixed stride (11 tokens), mixing context, cadence, and target:
+\begin{frame}{Event blocks + inter-event time tokens (grammar)}
+Each observed event contributes a fixed set of ``race'' tokens plus an observed pace token; \textbf{time tokens sit between events} and connect races:
 \begin{itemize}
   \item demographics: \texttt{age\_*}, \texttt{gen\_*}
   \item context: \texttt{cond\_*}, \texttt{hum\_*}, \texttt{temp\_*}, \texttt{feels\_*}, \texttt{wind\_*}
   \item distance: \texttt{distance\_name\_token\_*}
-  \item outcome: \texttt{pace\_*} (the supervised target token)
-  \item cadence: \texttt{d\_next\_*} (time since previous), \texttt{d\_fin\_*} (time to target)
+  \item outcome (observed in history): \texttt{pace\_*}
+  \item inter-event cadence (connects races): \texttt{d\_next\_*}, \texttt{d\_fin\_*}
 \end{itemize}
 \end{frame}
 
@@ -80,14 +80,14 @@ Event 1 (history):
 \vspace{-0.2em}
 \begin{center}
 \texttt{[age\_35, gen\_M, cond\_Clear, hum\_45, temp\_55, feels\_55, wind\_5,}\\
-\texttt{distance\_name\_token\_10\_kilometers, pace\_115, d\_next\_12, d\_fin\_12]}
+\texttt{distance\_name\_token\_10\_kilometers, pace\_115] [d\_next\_12, d\_fin\_12]}
 \end{center}
 \vspace{0.3em}
 Event 2 (target context, pace is predicted):
 \vspace{-0.2em}
 \begin{center}
 \texttt{[age\_35, gen\_M, cond\_Rain, hum\_85, temp\_48, feels\_42, wind\_15,}\\
-\texttt{distance\_name\_token\_half\_marathon, pace\_\textit{?}, d\_next\_0, d\_fin\_0]}
+\texttt{distance\_name\_token\_half\_marathon, pace\_\textit{?}]}
 \end{center}
 \normalsize
 \vspace{0.3em}

@@ -215,7 +215,7 @@ def train_model(config_path):
     import shutil
     shutil.copy(config_path, os.path.join(run_dir, "config_copy.yaml"))
     print(f"Config copied to: {os.path.join(run_dir, 'config_copy.yaml')}")
-
+    
     # Optional: step-based checkpointing (useful for sweeps / preemptible runs).
     # - If checkpoint_interval_steps <= 0, checkpoints are only saved at end-of-epoch (default behavior).
     # - If > 0, we update latest_checkpoint.pt every N optimizer steps so there is always something to resume from.

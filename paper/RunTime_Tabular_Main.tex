@@ -1,0 +1,264 @@
+\documentclass{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{placeins}
+\usepackage{float}
+\titleformat*{\section}{\normalfont\Large\bfseries}
+\titleformat*{\subsection}{\normalfont\large\bfseries}
+\begin{document}
+\begin{center}
+ {\LARGE \bf Explicit Discretization: How Transformers Beat XGBoost on Calibrated Tabular Forecasting}\\[0.5em]
+  {\large Yael S. Elmatad}\\
+  {\small Open Athena \& \href{mailto:Yael.elmatad@gmail.com}{Yael.elmatad@gmail.com}}
+\end{center}
+\vspace{-1em}
+\section*{Abstract}
+Gradient boosting still dominates Transformers~\cite{vaswani2017attention} on tabular benchmarks. We identify the bottleneck: continuous embeddings smooth away the discrete regimes that trees capture via axis-aligned splits. Our solution discretizes environmental context while smoothing labels with adaptive Gaussians, yielding calibrated PDFs. On 600K entities (5M training examples) we outperform tuned XGBoost~\cite{chen2016xgboost} by 10.8\% (35.94s vs 40.31s median MAE) and achieve KS=0.0045 with the adaptive-\(\sigma\) checkpoint selected to minimize KS rather than median MAE. Ablations confirm architecture matters: losing sequential ordering costs about 2.0\% and dropping the time-delta tokens costs about 1.8%, and a stratified calibration analysis reveals where miscalibration persists.
+\section{Introduction}
+XGBoost~\cite{chen2016xgboost} remains the default choice for tabular data because its axis-aligned splits create discrete regimes that Transformers usually miss. We isolate the failure mode: smooth embeddings blur regime boundaries and prevent ordinal awareness. RunTime treats each career as a causal stride of discretized tokens, respecting irregular time deltas and censoring cues so the model learns a full PDF rather than a point estimate. Our approach tackles this by discretizing both inputs and outputs, training with adaptive Gaussian-soft targets, and explicitly representing cadence with time delta tokens. Our contributions are:
+\begin{enumerate}[nosep]
+  \item Architectural insight that discrete regimes, not bigger Transformers, unlock tabular performance;
+  \item Adaptive Gaussian smoothing (\(\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}\), with \(w_i = b_i^{\text{end}} - b_i^{\text{start}}\)) that scales the smoothing strength with bin width while enforcing a minimum floor;
+  \item Empirical win: 10.8\% lower median MAE than tuned XGBoost plus KS=0.0045 calibration (KS optimized via the adaptive-\(\sigma\) best-KS checkpoint); and
+  \item Analysis methodology including stratified calibration to diagnose residual miscalibration.
+  \item Sequence-aware modeling that explicitly represents cadence with time-delta tokens and relies on entity-disjoint splits to keep temporal dependencies honest for unseen runners.
+\end{enumerate}
+These design decisions build on prior work demonstrating the effectiveness of discretization for forecasting~\cite{rabanser2020discretization,ansari2024chronos,ansari2025chronos2}, extending the discretized training philosophy from regular time series to irregular, tabular trajectories with entity-level splits and adaptive Gaussian smoothing.
+\section{Related Work}
+\subsection{Tabular Transformers}
+Despite Transformers' flexibility, XGBoost remains dominant on tabular benchmarks. Gorishniy et al.~\cite{gorishniy2021revisiting} show the FT-Transformer loses to XGBoost on 11 datasets, and Google's TabTransformer~\cite{huang2020tabtransformer} and TabNet~\cite{arik2021tabnet} similarly fail to close the gap even with specialized architectures. These models suffer because trees perform implicit binning through axis-aligned splits, creating sharp regimes (e.g., ``if age $>45$ then...''), whereas smooth neural embeddings average over those regimes and lose ordinal distinctions. Shwartz-Ziv \& Armon~\cite{shwartz2022tabular} argue that deep models learn overly smooth surfaces, and Grinsztajn et al.~\cite{grinsztajn2022tree} confirm that trees maintain their edge precisely for this reason. Our work addresses the same failure mode by making discretization explicit and combining it with distributional training.
+% Related Work updates and new subsections
+\subsection{Ordinal Regression and Calibration}
+Ordinal regression benefits from soft targets that preserve ordering. Tan et al.~\cite{tan2016age} use Gaussian soft labels for age estimation, and Diaz \& Marathe's SORD (Soft Labels for Ordinal Regression)~\cite{diaz2019sord} formulates soft ordinal vectors. Calibration literature (Guo et al.~\cite{guo2017calibration}, Kuleshov et al.~\cite{kuleshov2018accurate}) demonstrates the need for stratified diagnostics beyond global metrics. Our approach integrates Gaussian-integrated targets and stratified calibration during training, rather than relying on post-hoc scaling.
+
+\subsection{Event Trajectories and Temporal Point Processes}
+Modeling irregular event trajectories draws on temporal point process foundations (Du et al.~\cite{du2016recurrent}, Shchur et al.~\cite{shchur2020intensity}, Zuo et al.~\cite{zuo2020transformer}), which highlight the need to respect both the event content and the timing gaps. Chronos introduced a similar discretization thesis for regular time series, showing that Transformers trained with discretized horizons match or exceed state-of-the-art forecasting models when each time slot is binned (Ansari et al.~\cite{ansari2024chronos}). Chronos-2 extends that idea toward universal forecasting by mixing discrete value heads with continuous time embeddings (Ansari et al.~\cite{ansari2025chronos2}). Our method extends these insights to heterogeneous bins (requiring adaptive smoothing), irregular histories (requiring explicit time-delta tokens), and entity-disjoint evaluation (preventing individual memorization), bringing the discretization thesis from forecasting into tabular settings rather than strictly generative time-series modeling.
+
+\subsection{Discretization for Forecasting}
+Rabanser et al.~\cite{rabanser2020discretization} empirically demonstrate that treating forecasting as classification over discretized bins almost always outperforms regression, attributing the gains to the implicit regularization of binning and the flexibility of distributional outputs. Their method uses hard one-hot targets and assumes uniform bin widths, which ignores ordinal structure and limits handling for wide bins. We extend this line of work by preserving ordinal information through Gaussian-integrated soft targets and by introducing adaptive smoothing (\(\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}\)) to adapt to the heterogeneous bin widths that arise in tabular data with extreme values.
+\section{Method}
+\subsection{Problem Setup}
+Each training example is a sequence of past races for a single runner. Each race contributes:
+\begin{itemize}
+  \item environmental conditions (temperature, wind speed, feels-like temperature, feels-like humidity, and qualitative conditions such as rain or snow),
+  \item race metadata (distance),
+  \item demographics (age, gender), and
+  \item temporal gaps (\texttt{weeks\_since\_last}, \texttt{weeks\_to\_target}) plus the observed pace.
+\end{itemize}
+The dataset benefits from the NYRR 9+1 Program qualification history\cite{nyrr2024}, which ensures a consistent set of marathon and distance event completions per runner, and environmental conditions are sourced from the Visual Crossing Weather API\cite{visualcrossing2024}.
+We discretize pace into 270+ bins and frame the task as predicting the soft distribution across those bins.
+
+\textbf{Entity-disjoint evaluation.} We split 600K runners into train/validation/test (270K/30K/60K runners, ~2.25M/250K/500K examples, 5M total available) with no runner overlap. This prevents the model from memorizing individuals and puts the focus on generalization to unseen runners.
+\subsection{Discretization Strategy}
+Environmental inputs (temperature, humidity, wind, distance) and the target pace are quantized using balanced quantization so each bin carries roughly equal density, mirroring the regime-specific behavior of tree splits. We distinguish two token types: **quantized continuous** tokens (pace, temperature, etc.) that represent discretized numeric ranges and **categorical** tokens (gender, weather descriptor, etc.) that directly encode semantics. To prevent extreme tails from collapsing into overly wide bins, we recursively split the largest quantized tokens so their widths stay comparable to the rest of the vocabulary, keeping the softmax landscape expressive even at the extremes. Time deltas (weeks since last race, weeks to final) are tokenized but not quantized so they can capture irregular cadences as raw deltas. Everything in the model—including environmental states, pacing bins, demographic cues, and temporal gaps—is represented as a language token. Each event block concatenates the appropriate mix of quantized continuous tokens, categorical tokens, the observed pace token, and then the cadence tokens; the 327-token window supports up to 30 events and ends with the target pace to prevent leakage.
+\subsection{Gaussian-integrated Soft Targets}
+Following Rabanser et al.~\cite{rabanser2020discretization}, we treat the prediction as a classification over discretized bins but replace their hard one-hot targets with Gaussian-integrated soft targets that preserve ordinality:
+\[
+T_i = \int_{b_i^{start}}^{b_i^{end}}
+\frac{1}{\sigma\sqrt{2\pi}}\exp\left(-\frac{(x - y_{\text{true}})^2}{2\sigma^2}\right)\,dx,
+\]
+so bins near the true pace receive consistent credit, matching the technical document's presentation.
+\subsection{Adaptive Smoothing}
+Fixed \(\sigma\) values work well for narrow bins (many middle bins are only 1–3 seconds wide) but collapse across wider bins: a 3-second Gaussian produces soft targets for bins of comparable width yet behaves almost one-hot once bin widths exceed about 50 seconds. We therefore scale smoothing via the production quadrature-inspired rule:
+\[
+\sigma_i = \sqrt{ \sigma_{\text{floor}}^2 + (k \cdot w_i)^2 },
+\]
+where \(w_i = b_i^{\text{end}} - b_i^{\text{start}}\) is the width of bin \(i\), \(\sigma_{\text{floor}}\) enforces a minimum smoothing width, and \(k\) controls how aggressively the bin width influences the smoothing. This keeps narrow bins sharp while allowing broad bins to receive proportionally more mass, and the parameter pair \((\sigma_{\text{floor}}, k)\) is tuned on validation data and cached per bin via the training config.
+\subsection{Architecture}
+A causal Transformer~\cite{vaswani2017attention} (6 layers, 8 heads, 512-dimensional embeddings) processes the token stream. Pace tokens sit before the cadence tokens, and we mask attention to enforce causality. The decoder-style transformer ingests the fixed 11-token stride grammar so every event block is handled like auto-regressive language modeling, producing logits over pace bins that are trained with the Gaussian-smoothed cross-entropy objective described earlier (standard cross-entropy only appears in a specific ablation).
+\section{Experiments}
+\subsection{Setup}
+Entity-disjoint splits ensure zero leakage. The test set comprises 60K runners (500K predictions). Evaluation includes MAE, RMSE, and the Kolmogorov-Smirnov statistic for calibration.
+\subsection{Results}
+Table~\ref{tab:main-results} summarizes the median MAE gap (from the converged ablation sweep) between the full model and the baselines.
+\subsection{Training Configuration}
+Table~\ref{tab:train-config} collects the core training settings so the reported convergence behavior can be reproduced at scale.
+\begin{table}[h]
+\centering
+\caption{Main results}
+\label{tab:main-results}
+\begin{tabular}{lcccc}
+\toprule
+Model & Mean MAE & Median MAE & Mode MAE & Median RMSE \\
+\midrule
+Full model (\(\sigma=3\)) & \textbf{36.54} & \textbf{35.94} & \textbf{38.50} & \textbf{71.83} \\
+XGBoost (tuned) & 40.31 & 40.31 & 40.31 & 73.15 \\
+Naive mean & 52.72 & 52.72 & 52.72 & 88.16 \\
+Riegel formula & 49.74 & 49.74 & 49.74 & 94.71 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table*}[h]
+\centering
+\caption{Training configuration for the \(\sigma=3\) sweep. RunTime is a decoder-style causal Transformer that embeds the 11-token stride grammar, so this table lists its token/block-aware hyperparameters.}
+\label{tab:train-config}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Transformer width & 512 \\
+Inner feed forward size & 2,048 \\
+Dropout after attention/FFN & 0.12 \\
+Max races to consider & 30 \\
+Attention heads & 8 \\
+Decoder-only Transformer layers & 6 \\
+Per-GPU batch size & 64 \\
+AdamW base learning rate & 1e-4 \\
+Gaussian smoothing \(\sigma\) seconds & 3 \\
+AdamW weight decay & 0.00118 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+\paragraph{Ablation configurations} These MAE statistics come from the dedicated ablation sweep with reduced batch sizes, so they represent slightly more converged checkpoints than the main training runs. We report mean/median/mode to compare the distributional forecasts against tuned XGBoost (median MAE from the sweep) as well as the Naive mean (52.72s) and Riegel (49.74s) baselines, keeping every summary in the same natural units as the ablation runs. The optimizer is AdamW~\cite{loshchilov2019decoupled}, which lets us independently tune weight decay alongside the learning rate for better generalization.
+\paragraph{Riegel formula baseline} The Riegel formula extrapolates a runner’s performance across distances by assuming a power-law relation between finishing time and distance~\cite{riegel1981predicting}. We take each runner’s penultimate race as a reference point, normalize its performance by distance, and roll that history forward through the formula to predict the current target pace; this provides a lightweight, physics-inspired benchmark that captures pacing consistency without learning attention weights.
+\subsection{Ablations}
+\begin{table*}[h]
+\centering
+\caption{Ablation MAE statistics (\(\sigma=3\)) and wall-clock costs. The baselines have no variance and are reported as point estimates in the Median column.}
+\label{tab:ablations}
+\begin{tabular}{lrrrr}
+\toprule
+Configuration & Mean MAE & Median MAE & Mode MAE & Wall clock (h) \\
+\midrule
+Time token ablation & 37.24 & 36.58 & 39.28 & 107 \\
+Time token ablation, shuffled sequence & 37.23 & 36.65 & 39.73 & 145 \\
+Full model (\(\sigma=3\)) & \textbf{36.54} & \textbf{35.94} & \textbf{38.50} & \textbf{60} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Table~\ref{tab:ablations} validates that architectural choices—not just model capacity—drive the gains. Figure~\ref{fig:mae_ablation} (middle) shows performance relative to the full model, and the paragraphs below break the contributions down.
+
+\textbf{Time delta tokenization (\(\approx\)1.8\% gain).} Removing explicit time delta tokens raises median MAE from 35.94s to 36.58s (\(\approx\)1.8\%) while the wall-clock to converge jumps from 60h to 107h. This shows that temporal features simultaneously sharpen accuracy and accelerate training.
+
+Even though the accuracy hit remains modest in aggregate, the bottom panel of Figure~\ref{fig:mae_ablation} shows the degradation grows with longer histories, highlighting the cadence tokens’ role in extrapolating far-out predictions. At the same time the full model converges much faster (60h vs 107h) because the explicit deltas keep the sequence grounded. 
+
+\textbf{Temporal ordering (\(\approx\)2.0\% gain).} Shuffling the race history increases median MAE from 35.94s to 36.65s (\(\approx\)2.0\%), reinforcing that preserving chronological order lets the Transformer capture cadence-dependent progression patterns that random sequence destroys.
+
+\textbf{Temporal generalization.} Figure~\ref{fig:mae_ablation} (bottom) plots MAE vs.\ the week gap between a runner’s penultimate and target race. All variants worsen as the gap grows, but shuffling the history pushes MAE toward 57s past 25 weeks—approximately matching XGBoost—while the full model stays near 46s. The middle panel also shows that the relative gap between the shuffled and full models widens as history length increases, confirming that preserving chronological order helps the Transformer learn progression patterns that generalize better than tree-based methods.
+\begin{figure}[t!]
+\centering
+\includegraphics[width=1.0\linewidth,height=0.7\textheight,keepaspectratio]{../figures/mae_ablation_plot.png}
+\caption{Top: MAE vs. history length. Middle: normalized MAE showing the ablation gap relative to the full model. Bottom: MAE vs. week gap between the penultimate and target race, highlighting temporal staleness.}
+\label{fig:mae_ablation}
+\end{figure}
+\FloatBarrier
+\subsection{Calibration Analysis}
+Figure~\ref{fig:qq-curve-new} shows the updated Q–Q plot staying near uniform (KS=0.0045 from the best-KS adaptive-\(\sigma\) checkpoint), Figure~\ref{fig:quantile-calibration-new} highlights where the softmax concentrates its mass, and Figure~\ref{fig:decile-calibration} traces eight decile-specific curves that reveal residual drift for slower runners. These diagnostics demonstrate overall calibration while pointing to the performance-dependent deviations adaptive smoothing targets, and all three plots were generated using roughly 250,000 evaluation points across 10 bins per decile to keep the comparisons consistent. Importantly this calibration arrives without any post-training temperature scaling—the adaptive \(\sigma\) schedule effectively plays the role of an in-training temperature, and its dependence on bin width and statistics could also motivate a post-training “adaptive temperature” refinement that explicitly compensates for the granular, semi-quantized vocabulary.
+\begin{figure}[t!]
+\centering
+\includegraphics[width=\linewidth]{../figures/QQ-curves-new.png}
+\caption{Updated Q–Q plot showing near-uniform percentiles.}
+\label{fig:qq-curve-new}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{../figures/quantiles_calibration.png}
+\caption{Quantile calibration emphasizing where predicted densities concentrate.}
+\label{fig:quantile-calibration-new}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{../figures/calib-8.png}
+\caption{Calibration plots highlighting how different smoothing choices affect residual drift across percentiles.}
+\label{fig:decile-calibration}
+\end{figure}
+\FloatBarrier
+\paragraph{Model leaderboard summary} Table~\ref{tab:calib-leaderboard} reports the validation MAE/RMSE statistics collected for eight variants of the full model used in the calibration sweep. These runs were configured for fast iteration (larger batch sizes, larger learning rates, shorter sweeps) and should not be compared against the more converged \(\sigma=3\) benchmark in Table~\ref{tab:main-results}; rather, they exist to compare relative behavior under different smoothing/KS choices. Because the median MAE in Table~\ref{tab:main-results} comes from the extensively trained \(\sigma=3\) checkpoint (35.94s), the entries in this sweep deliberately report different medians, and the "best KS" checkpoint can therefore have a higher MAE even though its KS is lowest. Rows marked "Best KS" refer to the checkpoint selected for the smallest KS, i.e., the calibration-optimized partner for that loss variant rather than the run with the minimum median MAE.
+\begin{table*}[h]
+\centering
+\caption{Calibration sweep leaderboard (seconds). Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally.}
+\label{tab:calib-leaderboard}
+\begin{tabular}{l r rrr rrr}
+\toprule
+& KS & \multicolumn{3}{c}{MAE} & \multicolumn{3}{c}{RMSE} \\
+\cmidrule(lr){2-2}\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+Model & Statistic & Mean & Median & Mode & Mean & Median & Mode \\
+\midrule
+Adaptive \(\sigma\) & 0.0264 & \textbf{36.74} & \textbf{36.22} & \textbf{38.34} & 70.89 & 72.12 & 77.82 \\
+Adaptive \(\sigma\), best KS & \textbf{0.0045} & 37.34 & 36.36 & 38.88 & 71.05 & 71.99 & \textbf{76.50} \\
+Cross-entropy \(\sigma=0\) & 0.0293 & 37.00 & 36.32 & 38.74 & 71.02 & 72.14 & 77.65 \\
+Cross-entropy \(\sigma=0\), best KS & 0.0107 & 37.44 & 36.43 & 39.04 & 71.15 & 72.06 & 77.62 \\
+\(\sigma=1\) & 0.0263 & 36.83 & \textbf{36.22} & 38.98 & 70.89 & 72.01 & 82.29 \\
+\(\sigma=4\) & 0.0333 & 36.80 & 36.26 & 39.10 & 70.97 & 72.12 & 82.03 \\
+\(\sigma=10\) & 0.0321 & 36.80 & 36.23 & 38.94 & \textbf{70.88} & \textbf{71.92} & 80.39 \\
+\(\sigma=35\) & 0.1190 & 37.06 & 36.28 & 43.14 & 71.43 & 71.93 & 93.64 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Analysis}
+Discretization exposes the discrete regimes trees capture, allowing attention to concentrate within each bin instead of averaging over them. The quadrature-style adaptive smoothing \(\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}\) keeps the relative smoothing signal consistent by tying it to bin width while retaining a floor for narrow bins, which keeps calibration stable even with heterogeneous widths. Treating \(k\) and \(\sigma_{\text{floor}}\) as tunable hyperparameters lets us optimize the adaptive smoothing alongside the other model-selection variables rather than fixing them separately. This adaptive \(\sigma\) also plays a role similar to the temperature parameter used in post-hoc calibration—it rescales the logits, but unlike a post-training reweighting it is learned during training and therefore remains consistent across the vocabulary and bins. MAE decreases from \(\approx48\text{ s}\) at \(h=1\) to \(\approx30\text{ s}\) at \(h=25\) history, while attention snapshots show the cadence tokens dominate when entropy is high, confirming they supply the temporal context the model needs. Exploring a sigma-reduction schedule (analogous to a learning-rate decay or simulated annealing) might further help the model navigate flatter minima; we plan to test whether progressively sharpening the Gaussian targets during training accelerates convergence without sacrificing calibration.
+\section{Discussion and Limitations}
+Our experiments confirm that respecting discrete regimes lets Transformers rival tuned gradient boosting. The method generalizes to ordinal regression tasks beyond running; any setting with heterogeneous bin widths can adopt the same discretization plus adaptive smoothing recipe. Limitations include the ongoing adaptive sigma experiments (which we are running), the current lack of overflow bins for tail coverage (which can clip predictions when the pace falls outside the discretized vocabulary), and the fact that all results so far derive from the running dataset—external validation (e.g., MIMIC-IV) remains future work. Adding overflow (and underflow) bins that explicitly model \([b_{\text{min}}, \infty)\) and \((-\infty, b_{\text{max}}]\) would let the model gracefully handle previously unseen extreme paces and is part of the planned extensions.
+\section{Conclusion}
+Explicit discretization, adaptive Gaussian smoothing, and causal time tokens let a Transformer outperform tuned XGBoost on a large entity-disjoint benchmark while producing better-calibrated PDFs. The paper provides both architectural guidance and analysis tooling (stratified calibration) for future tabular work. One could further treat the adaptive sigma schedule like simulated annealing—starting with larger sigma values and slowly tightening them during training—potentially leveraging the softer targets early on for stability while sharpening distributions as the model converges.
+\clearpage
+\appendix
+\section{Additional Analyses}
+\subsection{Runner Trajectories and Calibration Examples}
+Figure~\ref{fig:runner-ye} through Figure~\ref{fig:runner-rw} show three representative runner histories (short, median, and long careers). Each block overlays the observed pace sequence with the Gaussian-smoothed prediction envelopes, illustrating the full predicted distribution (PDF) across the vocabulary and how the density sharpens for consistent performers while broadening for more erratic trajectories.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/YE.png}
+\caption{YE (short-career) runner trajectory with predicted PDFs illustrating tight uncertainty as the history grows.}
+\label{fig:runner-ye}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/RY.png}
+\caption{RY (median-career) runner trajectory showing moderate calibration and widening distributions for longer distances.}
+\label{fig:runner-ry}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/RW.png}
+\caption{RW (long-career) runner trajectory that exhibits sustained variability and broad PDFs even late in the history.}
+\label{fig:runner-rw}
+\end{figure}
+
+\paragraph{Runner selection note} These three runners were selected not because they are archetypal but because they are known to the authors, which lets us verify that outliers (e.g., YE’s slower-than-usual race \#7, run with a teenage sibling, or race \#19, run with a group of friends) are artifacts of human decision-making rather than modeling failure. The point is to show that even when the model is calibrated, humans still choose to vary their strategy, so distributional forecasts are the right interface for uncertainty-aware guidance.
+
+\subsection{Activation and Attention Diagnostics}
+Activation statistics and attention patterns confirm that cadence tokens dominate when entropy is high, while the pace bins sharpen when variance is low. Figure~\ref{fig:activation-visualization} visualizes the same batch from three views (attention, per-layer contributions, and distributional histogram), showing how the model routes focus toward time deltas during uncertain predictions.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_attn_L5_H0_20260121_070548.png}\\[0.3em]
+\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_bylayer_20260121_070547.png}\\[0.3em]
+\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_dist_20260121_070547.png}
+\caption{Activation and attention diagnostics for a high-uncertainty prediction. Top: attention weights for the final transformer block. Middle: per-layer contribution magnitudes. Bottom: pace distribution histogram showing the predicted softmax.}
+\label{fig:activation-visualization}
+\end{figure}
+
+\subsection{Data Provenance and Survival-Analysis Context}
+The core dataset is drawn from the NYRR 9+1 Program training logs, ensuring a consistent set of qualifying races per athlete~\cite{nyrr2024}, and the environmental tokens rely on Visual Crossing’s historical weather API~\cite{visualcrossing2024}. The discretized vocabulary mirrors survival-analysis thinking (Cox~\cite{cox1972regression}, Katzman et al.~\cite{katzman2018deepsurv}, Lee et al.~\cite{lee2018deephit}), where carefully binned hazard-like states preserve ordinal structure and allow probability distributions to represent censored or extreme outcomes. Adaptive sigma caches follow the implementation in the training code, matching the quadrature-style smoothing and \((\sigma_{\text{floor}}, k)\) pairs described earlier.
+
+\subsection{Grammar Efficiency Considerations}
+The current stride grammar repeats entity-level signals such as gender or baseline demographics in every block, which mirrors how the data is stored but adds redundant tokens that could be compressed. A more concise alternative would separate the inherent runner features (fixed across the career) from the event-specific descriptors (distance, weather, pace) and the time tokens, only reintroducing the moving parts at each step. Doing so would preserve the causal story (“system vessels → event → timing → next event”) while saving memory and speeding up training, since fewer repeated embeddings would need to be cached. We keep the redundant copies for transparency and because they simplify batching, but future grammar designs could exploit this structure to cut down on per-stride verbosity.
+
+ \subsection{Future Work and Applications}
+The technical report expands on a number of follow-on directions that flow naturally from the discretized grammar. One strand treats the pace PDF as a survival-style signal: censoring tokens such as `\texttt{time\_censored}`, `\texttt{time\_eos}`, and `\texttt{time\_missing}` can flag trajectories where no future race is observed within the window, so the Transformer can distinguish “still at risk” careers from ones that terminated. This mirrors classic survival analysis (Cox 1972, Katzman et al. 2018, Lee et al. 2018) while preserving the irregular attention-based representation; middleware like right-censoring or overflow bins (e.g., explicit bins for \(y < b_1^{start}\) or \(y > b_K^{end}\)) let the PDF gracefully extend beyond the observed support.
+
+Another strand reinterprets the causal stride as a generative process. A pure generative Transformer can sequentially sample every token within an event block, conditioning on the previous context and respecting hybrid loss functions that treat discrete tokens (categorical weather) with cross-entropy and quantized continuous tokens (pace, numeric environmental features) with smoothed Gaussian penalties. The specific token ordering becomes a hidden hyperparameter in this setup: choosing whether to generate environmental covariates before the outcome changes which conditional factors the model learns, and the technical report proposes both conditional generation (treating future covariates as given) and full joint generation (ordering tokens to match a plausible data-generating story).
+
+Such an auto-regressive sampler enables Monte Carlo digital twins: recursively sampling from the predicted PDF at every step produces families of plausible future trajectories, which support stress testing, tail-risk analysis, or scenario planning in domains like energy, flood management, or finance. These trajectories can also be conditioned on arbitrary covariate sequences to simulate missing data (e.g., inserting sentinel tokens for the absence of temperature or opponent identity) or to explore heterogeneous event grammars (race vs.\ clinic vs.\ training tokens). Together, these extensions underscore how the same discretized architecture scales from distributional forecasting to generative simulation while retaining calibration and interpretability.
+ 
+\subsection{Huber-loss exploration}
+An early experiment (see the technical appendix) combined the Transformer’s softmax head with a Huber-style point-loss on the expected pace as an auxiliary objective. The idea was to force the model to hedge around the prediction while still learning a distribution; the result was instructive. Under this composite objective the model learned to route almost all probability mass to the extreme pace bins (first and last of the vocabulary) while adjusting their relative weights to hit whatever point estimate the Huber loss demanded. In other words, the model “cheated” the loss by ignoring the interior bins and collapsing the distribution onto the extremes, so the apparent MAE improved at the cost of losing the predictive PDF entirely. This failure reinforced the lesson that RunTime must prioritize distributional fidelity—hence the switch to full Gaussian-smoothing with cross-entropy as described in the main text.
+\clearpage
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+\end{document}
+

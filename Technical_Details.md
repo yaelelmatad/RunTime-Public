@@ -6,7 +6,7 @@
 
 **License (this document):** Creative Commons Attribution 4.0 International (CC BY 4.0). See `LICENSE-CC-BY-4.0`.
 
----
+***
 
 ## Abstract
 
@@ -18,7 +18,7 @@ Although presented through the lens of **TPPs** and irregular-event sequences, t
 
 **Why does it matter?** Predicting a **distribution** (a PDF over discretized bins) enables uncertainty-aware decisions and avoids the brittleness of point-estimate regression in noisy, irregular systems.
 
-**What does it achieve?** On a high-fidelity benchmark of **600,000+ trajectories** and **5M+ training examples**, RunTime achieves **37.10s MAE** compared to a tuned XGBoost result of **40.94s** (a 3.84-second or **9.35% improvement**) on **entity-disjoint (unseen-runner)** evaluation splits. These numbers reflect initial, untuned RunTime experiments; ongoing hyperparameter sweeps are expected to widen the gap as tuning effort is matched to the tabular baseline.
+**What does it achieve?** On a high-fidelity benchmark of **600,000+ trajectories** and **5M+ training examples**, RunTime achieves **35.94s MAE** compared to a tuned XGBoost result of **40.31s** (a 4.37-second or **10.8% improvement**) on **entity-disjoint (unseen-runner)** evaluation splits. These values reflect the finalized RunTime and baseline checkpoints; no further tuning is being performed for this reported comparison.
 
 ## Priority Claims
 
@@ -39,7 +39,7 @@ Work-in-progress status: detailed follow-ups are catalogued in Section 8.
 
 **Planned:** heterogeneous-event grammars, zero-history comparisons, external validation (e.g., MIMIC-IV). This document is shared to establish priority while inviting collaboration.
 
----
+***
 
 ## Probabilistic Discretization for Transformers
 
@@ -88,7 +88,7 @@ $$
 
 and we minimize the cross-entropy between the predicted softmax and this smooth target. This encourages the Transformer to express calibrated uncertainty: near misses still contribute, the loss landscape remains differentiable, and the model can gracefully interpolate between neighboring medians.
 
-This is a **key differentiator** from Chronos. The soft target also makes Monte Carlo rollouts more stable, smoothing the tails of the predicted cone without needing hand-tuned label smoothing.
+This is a **key differentiator** from Chronos. The soft target also makes Monte Carlo rollouts more stable, smoothing the tails of the predicted cone without needing hand-tuned label smoothing. We further keep those soft targets calibrated across heterogeneous bin widths via an **adaptive $\sigma$** schedule: each bin $i$ adopts $\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}$, so narrow bins stay sharp through the $\sigma_{\text{floor}}$ term while wider bins receive proportionally more smoothing via $k \cdot w_i$. These parameters are tuned alongside the rest of the model and cached per bin for efficient computation, ensuring the smoothing signal adapts to the quantization landscape without additional post-hoc scaling.
 
 ## Distinguishing from Chronos’s Regular Framework
 
@@ -208,7 +208,7 @@ Future iterations can mitigate this without abandoning the discrete-vocabulary f
 
 This approach preserves the benefits of balanced quantization while allowing the predicted PDF to express outcomes beyond the min/max bin medians in a principled, auditable way.
 
----
+***
 
 ## 2. The Power of the PDF: Beyond the Point Estimate
 
@@ -264,7 +264,7 @@ Practically, there are two clean ways to avoid accidental incoherence:
 1. **Conditional generation (recommended for most forecasting tasks)**: treat future covariates like distance and weather as *given* at inference time, and only generate the target distribution (e.g., `pace`) conditioned on those covariates.
 2. **Joint generation (only if the application demands it)**: explicitly decide which tokens are exogenous vs endogenous and design the token order to match a plausible data-generating process (or test multiple orderings as an ablation).
 
----
+***
 
 ## 3. The Proving Ground: Data Engineering & Pipeline
 
@@ -307,18 +307,21 @@ For example, when the model predicts the outcome for the 10th event, it can atte
 In a heterogeneous extension, where event types and censoring are explicitly modeled, the time token starts to act like a **period** in a sentence: it signals the beginning of a new event block (or the absence of a future event when censored). In that case, the $11n+4$ constant is no longer strictly true; instead the interval **between** two time tokens defines the span that self-attention should reason over, and the time tokens themselves cue the model to reset the stride and browse the next event’s feature block.
 
 #### Example: A Two-Event Sentence
-To visualize the grammar, consider a trajectory consisting of two events. Each event is represented by a block of 11 tokens. 
+To visualize the grammar, consider a trajectory consisting of two events. Each observed historical event ends with an observed `pace` token, and the **time tokens sit between races** (connecting adjacent events and the horizon).
 
 **Event 1 (Historical Context):**
-`[age_35, gen_M, cond_Clear, hum_45, temp_55, feels_55, wind_5, dist_10k, pace_115, d_next_12, d_fin_12]`
+`[age_35, gen_M, cond_Clear, hum_45, temp_55, feels_55, wind_5, dist_10k, pace_115]`
+
+**Inter-event time tokens (connect to Event 2 / horizon):**
+`[d_next_12, d_fin_12]`
 
 **Event 2 (Target Context):**
-`[age_35, gen_M, cond_Rain, hum_85, temp_48, feels_42, wind_15, dist_half, pace_142, d_next_0, d_fin_0]`
+`[age_35, gen_M, cond_Rain, hum_85, temp_48, feels_42, wind_15, dist_half]`
 
 **The Input/Target Split:**
-The model receives the first **21 tokens** as the input sequence. The **22nd token** (`pace_142`) serves as the target. By processing this sequence, the attention mechanism simultaneously weighs the 12-week gap (`d_next_12`), the increased distance (`dist_half`), and the deteriorating weather (`cond_Rain`) to generate the probability distribution for the final outcome.
+The model receives the first **19 tokens** as the input sequence (Event 1 + time tokens + Event 2 context). The **20th token** (`pace_142`) serves as the target. By processing this sequence, the attention mechanism simultaneously weighs the 12-week gap (`d_next_12`), the increased distance (`dist_half`), and the deteriorating weather (`cond_Rain`) to generate the probability distribution for the final outcome.
 
----
+***
 
 ## 4. Validation Benchmark: A Proof-of-Concept
 
@@ -331,9 +334,13 @@ The following plots provide qualitative validation of distributional behavior an
 
 #### Example Distributions (Qualitative)
 
-![YE runner PDFs](./figures/YE.png)
-![RY runner PDFs](./figures/RY.png)
-![RW runner PDFs](./figures/RW.png)
+
+<figure>
+  <img src="./figures/YE.png" alt="YE runner PDFs" width="100%">
+  <img src="./figures/RY.png" alt="RY runner PDFs" width="100%">
+  <img src="./figures/RW.png" alt="RW runner PDFs" width="100%">
+  <figcaption>Individual runner trajectories with predicted probability distributions. Each panel shows the model’s predicted PDF (blue curve) and actual outcome (red dashed line) for consecutive races, sorted by history length (h = number of prior races in context). Yellow boxes indicate the percentile of the actual outcome within the predicted PDF. All plots use a common y-axis scale (0.000-0.045 probability density) for cross-runner comparison.</figcaption>
+</figure>
 
 *Figure: Individual runner trajectories with predicted probability distributions. Each panel shows the model's predicted PDF (blue curve) and actual outcome (red dashed line) for consecutive races, sorted by history length (h = number of prior races in context). Yellow boxes indicate the percentile of the actual outcome within the predicted PDF. All plots use a common y-axis scale (0.000-0.045 probability density) for cross-runner comparison.*
 
@@ -391,10 +398,10 @@ To make the model’s internal reasoning auditable, attention weights are inspec
   ![Wide attention bar (h=10)](./figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_attn_L5_H0_20260121_070548.png)
 
 *   **The Baseline**: A tabular **XGBoost** regressor trained on engineered features extracted from the tokenized sequence (historical pace statistics like mean/EMA/min/max/volatility, cadence features like `weeks_since_last` and `total_career_span`, binned weather/context values, and a **continuous distance feature** `distance_miles` mapped from the distance token). Categorical `conditions` are **one-hot encoded**, and training uses **early stopping** with artifacts written to an explicit `--output_dir` for auditability.
-*   **The Result**: RunTime achieved a **9.35% reduction in MAE** on **entity-disjoint (unseen-runner)** test splits (computed as $1 - 37.10/40.94$). In practice, this performance lead emerges early in training, suggesting the Transformer's architectural priors are well-suited for capturing the underlying structure of irregular event trajectories.
+*   **The Result**: RunTime achieved a **10.8% reduction in MAE** on **entity-disjoint (unseen-runner)** test splits (computed as $1 - 35.94/40.31$). In practice, this performance lead emerges early in training, suggesting the Transformer's architectural priors are well-suited for capturing the underlying structure of irregular event trajectories.
 
 These numbers capture initial experiments (untuned RunTime vs tuned XGBoost) to establish baseline performance; fully matched tuning and more extensive sweeps are slated in Section 8 to reinforce the comparison.
-*   **The Discretization Trade-off**: Notably, the 9.35% improvement is achieved despite a significant resolution disadvantage for the Transformer. The XGBoost baseline regresses directly to the **continuous** target (pace seconds), while RunTime is constrained to a **discrete vocabulary** of 270+ bins for both its inputs and its outputs. The fact that the Transformer remains competitive with (or outperforms) the tuned tabular baseline suggests the **sequential rhythm** and temporal context are far more predictive than raw numerical precision.
+*   **The Discretization Trade-off**: Notably, the 10.8% improvement is achieved despite a significant resolution disadvantage for the Transformer. The XGBoost baseline regresses directly to the **continuous** target (pace seconds), while RunTime is constrained to a **discrete vocabulary** of 270+ bins for both its inputs and its outputs. The fact that the Transformer remains competitive with (or outperforms) the tuned tabular baseline suggests the **sequential rhythm** and temporal context are far more predictive than raw numerical precision.
 *   **The Hierarchy of Signal**: Feature importance analysis of the XGBoost baseline confirms that historical performance (EMA and distance-specific averages) accounts for over 75% of the predictive signal, while environmental factors (temperature, humidity) contribute less than 2%. This reinforces the core thesis: the System Rhythm discovered by the Transformer's attention mechanism is the primary driver of accuracy in irregular event processes.
 *   **The Insight**: RunTime didn't just learn simple linear trends; it learned the **shape of a trajectory**. It identified when a sequence was on a path to beat its average based on the specific cadence of the preceding years of events.
 
@@ -402,64 +409,77 @@ These numbers capture initial experiments (untuned RunTime vs tuned XGBoost) to 
 
 Evaluated **200,000** race predictions.
 
-| Model | MAE (seconds) | Notes |
-|---|---:|---|
-| Naive mean  | 54.19 | Predict global mean pace |
-| Last race pace | 61.31 | Predict last observed pace in history |
-| Riegel formula | 50.76 | Physiological scaling baseline across distance |
-| XGBoost | 40.94 | Tabular baseline on continuous features (tuned) |
-| RunTime (mean)| 37.67 | Point estimate from predicted PDF mean (untuned, tuning in process) |
-| RunTime (median) |37.10 | Point estimate from predicted PDF median (untuned, tuning in process) |
-| RunTime (mode) |38.64 | Point estimate from predicted PDF mode (untuned, tuning in process) |
+| Model | Median MAE (seconds) | Notes |
+| --- | ---: | --- |
+| <span style="white-space:nowrap;">Naive mean</span> | 52.72 | Predict global mean pace |
+| <span style="white-space:nowrap;">Riegel formula</span> | 49.74 | Physiological scaling baseline across distance |
+| XGBoost | 40.31 | Tabular baseline on continuous features (tuned) |
+| <span style="white-space:nowrap;">RunTime (mean)</span> | 36.54 | Expected value of the predicted PDF ($\sigma=3$) |
+| <span style="white-space:nowrap;">RunTime (median)</span> | 35.94 | Median of the predicted PDF ($\sigma=3$) |
+| <span style="white-space:nowrap;">RunTime (mode)</span> | 38.50 | Mode of the predicted PDF ($\sigma=3$) |
 
 **Split discipline**: runners are assigned to exactly one of Train / Validation / Test. Reported MAEs are computed on **unseen runners** (entity-disjoint test split), ensuring the evaluation uses athletes never exposed during training or tuning.
 
 **Evaluation method (what each row means)**:
 - **Metric (MAE)**: Mean Absolute Error in **seconds per mile**, computed over n=200,000 held-out (test-split) race predictions.
 - **Naive mean**: Always predicts the **single global mean** pace (seconds/mile) computed from the held-out evaluation population.
-- **Last race pace**: Predicts the pace from the **most recent historical race** available in the input context.
 - **Riegel formula**: Predicts pace by scaling performance across distance using the **Riegel power-law** heuristic (a standard endurance baseline).
 - **XGBoost**: A supervised tabular regressor over engineered historical/context features (see `train/Benchmark_Baselines.py`). A convenience wrapper script is provided as `train/run_xgboost_tuning.sh` (supports `--output_dir`, seed, and early stopping).
 - **RunTime (mean/median/mode)**: The model outputs a **discrete probability distribution** over pace bins. We convert that distribution into a point prediction by taking either the **expected value (mean)**, the **50th percentile (median)**, or the **argmax (mode)** of the predicted distribution (with bin medians as the pace value per class).
 
-![MAE vs experience](./figures/mae_vs_experience.png)
+![MAE ablation triptych](./figures/mae_ablation_plot.png)
 
-*Figure: Mean Absolute Error (MAE) versus history length (number of prior events in context). This plot summarizes how predictive accuracy scales with available trajectory depth.*
+*Figure: Top: MAE vs. history length. Middle: normalized MAE showing the ablation gap relative to the full model. Bottom: MAE vs. week gap between the penultimate and target race (temporal staleness). These panels capture the triptych from the paper, illustrating timeline dependence and ablation gaps.*
 
 #### Training Curves (Weights & Biases)
-The following plots are exported directly from the W&B training run to make optimization behavior easy to audit.
+The production-scale RunTime model was trained for **30 epochs** (wall-clock time: **1d 20h**). The **lowest validation MAE** occurred at **epoch 23**; later epochs showed mild degradation consistent with slight overfitting, so we keep the best checkpoint for evaluation.
 
-**Training status note**: The production-scale RunTime model was trained for **30 epochs** (wall-clock time: **1d 20h**). The **lowest validation MAE** was achieved at **epoch 23**; subsequent epochs showed mild degradation consistent with the onset of overfitting, and the best checkpoint is retained for evaluation.
-
-![W&B training overview](./figures/wandb-figures/val_train_plots.png)
-
-*Figure: W&B training overview. Composite panel showing learning rate, epoch-level MAE, epoch-level loss, prediction entropy, and batch-level MAE during optimization.*
-
-![W&B validation curves](./figures/wandb-figures/val_mae_loss.png)
-
-*Figure: W&B validation curves. Composite panel showing validation MAE and validation loss across training; these are the primary indicators of generalization and distributional fit.*
----
-To assess whether RunTime's predicted probability distributions are well-calibrated, we compute the percentile of each actual outcome within its predicted PDF. For a well-calibrated model, these percentiles should follow a Uniform(0,1) distribution: if the model predicts a runner will finish at the 70th percentile of their predicted distribution, they should indeed finish there approximately 70% of the time, with equal probability of landing in any percentile range.
-
-![Actual outcome percentile histogram](./figures/pace_percentiles.png)
-
-*Figure: Distribution of actual outcome percentiles within predicted PDFs (n=10,000 test predictions). For each prediction, we compute where the actual outcome falls within the model's predicted probability distribution. Bins represent 5-percentile intervals. If the model is well-calibrated, this histogram should be approximately uniform (all bars near 50 predictions). The observed distribution shows good uniformity with mean at 50.9th percentile and median at 50th percentile, suggesting the model is well-calibrated and unbiased.*
-
-Figure X shows the distribution of actual outcome percentiles for n=10,000 test predictions, binned into 20 equal-width intervals (5 percentile points each). Under perfect calibration, each bin should contain approximately 500 predictions. The observed distribution is approximately uniform, with bin counts ranging from 34 to 69 (mean: 50.9th percentile, median: 50th percentile). This near-uniformity provides initial evidence of good calibration, which we validate formally below using quantile-quantile analysis.
-
+***
 To validate that RunTime produces well-calibrated probability distributions rather than merely accurate point estimates, we perform two complementary calibration analyses. First, we use a Q-Q (quantile-quantile) plot to test whether actual outcomes are uniformly distributed across their predicted PDFs—a global test of distributional calibration. Second, we construct a calibration curve (reliability diagram) to verify that predicted probabilities match observed frequencies—a more interpretable bin-wise validation. Together, these diagnostics confirm that RunTime's distributional predictions are both statistically sound and practically reliable.
 
-![Quantile-quantile plot](./figures/qq.png)
+<figure>
+  <img src="./figures/QQ-curves-new.png" alt="Quantile-quantile plot" width="100%">
+  <figcaption>Quantile-quantile plot comparing observed outcome percentiles to the theoretical Uniform(0,1) distribution (n=250,000 test predictions). Percentiles stay consistently near the diagonal, with the Kolmogorov-Smirnov statistic reaching D=0.0045 after selecting the adaptive-$\sigma$ checkpoint that minimizes KS; maximum deviations remain below 0.5 percentage points, underscoring how well the RunTime PDF matches uniform percentiles.</figcaption>
+</figure>
 
-*Figure: Quantile-quantile plot comparing observed outcome percentiles to the theoretical Uniform(0,1) distribution (n=10,000 test predictions). For each prediction, we compute the percentile of the actual outcome within the predicted PDF. The near-perfect linearity demonstrates excellent calibration. Kolmogorov-Smirnov test: D=0.025, p<0.001. Despite the formal significance driven by large sample size, the small maximum deviation (2.5 percentage points) indicates outstanding practical calibration.*
+<figure>
+  <img src="./figures/quantiles_calibration.png" alt="Quantile calibration plot" width="100%">
+  <figcaption>Quantile calibration highlighting where the predicted softmax mass concentrates for n=50,000 evaluation points (5k per quantile bin). Each curve maps the predicted quantile against the empirical quantile, and the ±3 percentage-point band shows the deviations remain modest across the support. The same data previously summarized by the “actual outcome percentile histogram” now appears along this curve, confirming that empirical percentiles stay near the diagonal and roughly uniform across bins.</figcaption>
+</figure>
 
-![Calibration curve](./figures/calibration.png)
+<figure>
+  <img src="./figures/calib-8.png" alt="Calibration sweep chart" width="100%">
+  <figcaption>Calibration sweep for n=250,000 evaluation points showing how each adaptive-$\sigma$ configuration behaves across the percentile spectrum. Even the model selected for best KS stays within ±3 percentage points of the ideal diagonal, confirming the PDF remains well-centered even when comparing multiple variants.</figcaption>
+</figure>
 
-*Figure: Calibration curve showing predicted probabilities versus observed frequencies (n=50,000 threshold predictions). For each probability threshold, we compare the model’s predicted probability of an outcome occurring to how often it actually happens. Points falling on the diagonal (y=x) indicate perfect calibration. Deviations remain under 3 percentage points across all bins, confirming reliable uncertainty estimates.*
+**Table 4: Calibration sweep leaderboard (seconds).** Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally.
 
-Distributional calibration. Figure X displays the Q-Q plot for n=10,000 test predictions. The observed percentiles closely follow the Uniform(0,1) line, with the Kolmogorov-Smirnov statistic D=0.025 (p<0.001)—formally significant only because of the large sample size, but correspondingly small in magnitude (maximum deviation approximately 2.5 percentage points). To complement this global test with a more interpretable diagnostic, Figure Y presents a calibration curve built from n=50,000 threshold tests. Across every predicted probability range, observed frequencies stay within 3 percentage points of the predicted values, and the mean predicted probability (60.1%) is nearly identical to the mean observed frequency (59.7%), confirming the model is well-centered and unbiased. These distributional diagnostics are only possible because RunTime outputs full PDFs instead of single-valued predictions; tabular baselines like XGBoost cannot produce analogous probabilistic assessments. The ability to quantify and validate uncertainty is a key advantage of this distributional approach for irregular event prediction.
+\begin{table}[ht!]
+\centering
+\footnotesize
+\begin{tabular}{@{}p{0.28\linewidth}rrrrrrr@{}}
+\toprule
+Model & KS & MAE Mean & MAE Median & MAE Mode & RMSE Mean & RMSE Median & RMSE Mode \\
+\midrule
+Adaptive $\sigma$ & 0.0264 & 36.74 & 36.22 & 38.34 & 70.89 & 72.12 & 77.82 \\
+Adaptive $\sigma$, best KS & 0.0045 & 37.34 & 36.36 & 38.88 & 71.05 & 71.99 & 76.50 \\
+Cross-entropy $\sigma = 0$ & 0.0293 & 37.00 & 36.32 & 38.74 & 71.02 & 72.14 & 77.65 \\
+Cross-entropy $\sigma = 0$, best KS & 0.0107 & 37.44 & 36.43 & 39.04 & 71.15 & 72.06 & 77.62 \\
+$\sigma = 1$ & 0.0263 & 36.83 & 36.22 & 38.98 & 70.89 & 72.01 & 82.29 \\
+$\sigma = 4$ & 0.0333 & 36.80 & 36.26 & 39.10 & 70.97 & 72.12 & 82.03 \\
+$\sigma = 10$ & 0.0321 & 36.80 & 36.23 & 38.94 & 70.88 & 71.92 & 80.39 \\
+$\sigma = 35$ & 0.1190 & 37.06 & 36.28 & 43.14 & 71.43 & 71.93 & 93.64 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
----
+The adaptive smoothing rule $\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}$ keeps the soft targets proportional to bin width while retaining a learned floor, letting us treat $k$ and $\sigma_{\text{floor}}$ as tunable hyperparameters alongside KS/MAE selection. This leaderboard highlights the KS-focused checkpoint (0.0045) and the other sweep candidates whose MAE/RMSE trade-offs provide practical calibration signals.
+
+Together these diagnostics confirm the calibrated nature of RunTime’s PDFs. The Q-Q plot provides a global KS test and the quantile calibration traces the cumulative distribution. No post-hoc temperature scaling was needed: the adaptive-$\sigma$ schedule already tuned within-training, but the structure suggests a natural post-training refinement. Because $\sigma$ behaves much like a temperature term, one could imagine a **post-training temperature sweep** (or even an **adaptive temperature**) to resolve residual bin-width uncertainty—this could be done by adjusting $\sigma$ after training while keeping the learned logits fixed, similar to temperature scaling in classification. Additionally, the same adaptive-$\sigma$ schedule lends itself to a kind of **simulated annealing** during training: start with a larger $\sigma$ (softer targets) to encourage exploration, and gradually shrink $\sigma$ toward the learned floor as optimization proceeds so the model sharpens into the final bins without sacrificing calibration.
+
+Distributional calibration. Figure X displays the Q-Q plot for n=250,000 test predictions. The observed percentiles closely follow the Uniform(0,1) line, with the Kolmogorov-Smirnov statistic measuring KS = 0.0045 (maximum deviation approximately 0.5 percentage points). To complement this global test with a more interpretable diagnostic, Figure Y presents a calibration curve built from n=50,000 threshold tests. These distributional diagnostics are only possible because RunTime outputs full PDFs instead of single-valued predictions; tabular baselines like XGBoost cannot produce analogous probabilistic assessments. The ability to quantify and validate uncertainty is a key advantage of this distributional approach for irregular event prediction.
+
+***
 
 ## 5. Architectural Generalizability: Research Directions
 
@@ -471,7 +491,7 @@ While validated on specific performance data, the core architecture—**Sequence
 
 Although the current formulation emphasizes multi-event context depth (e.g., $h \\ge 2$), there is no architectural reason the framework cannot be evaluated in a **zero-history** setting (no prior events at all): predicting a single outcome using only the **current covariates** (e.g., demographic/context features) with **no historical trajectory context**. This yields a clean baseline comparable to standard supervised prediction on static features, while retaining the key advantages of the approach (distributional targets, quantization as regularization, and token-level interpretability). Similarly, there is no reason the same framework cannot be applied on **regularly-sampled intervals**, placing it in direct comparison with classical grid-based forecasters (e.g., **ARIMA**) and modern foundation-style time-series models (e.g., **Chronos**) while keeping the same distributional training and mechanistic inspection tooling intact.
 
-Setting \(h=0\) in this context is a natural hypothesis: RunTime would reduce to a regression model that only sees the present covariates but still respects the discrete vocabulary and Gaussian-smoothed targets, demonstrating the architecture’s flexibility beyond long histories.
+Setting $h=0$ in this context is a natural hypothesis: RunTime would reduce to a regression model that only sees the present covariates but still respects the discrete vocabulary and Gaussian-smoothed targets, demonstrating the architecture’s flexibility beyond long histories.
 
 ### A. System Monitoring: From Static Thresholds to Dynamic Trajectories
 In high-stakes domains like medical monitoring (e.g., cholesterol, glucose levels, cardiac markers) or industrial maintenance (e.g., vibration analysis, thermal load), the status quo relies on **static thresholds**. A value is deemed dangerous only when it crosses a population-wide limit. This approach is reactive and ignores the individual’s unique baseline.
@@ -516,13 +536,13 @@ The benchmark gap illustrates why distributional precision deserves further inve
 ### G. Heterogenous Event Grammar
 The heterogeneous-event grammar idea—introducing event-type tokens (race/training/clinic) plus sentinel tokens for missing modalities—is a conceptual follow-up, similar to the Monte Carlo digital twins and the extended support/overflow bins. These experiments would allow the stride-based Transformer to learn distinct grammars per event type without noisy imputation, but they are outside today's focused validation/ablation suite. We note them here so future work can pick them up without conflating them with the running ablations.
 
----
+***
 
 ## 6. Conclusion
 
 RunTime demonstrates that **explicit discretization**, **Gaussian-smoothed soft targets**, and **first-class time tokens** enable causal Transformers to compete with gradient-boosted trees on irregular sequence prediction while providing calibrated PDFs for uncertainty-aware decision-making. Attention and activation inspection retain interpretability, and ongoing ablations and external validations (Section 8) will test the limits of this architecture across domains.
 
----
+***
 
 ## 7. Materials and Reproducibility
 
@@ -540,37 +560,29 @@ To support the advancement of temporal modeling, a curated set of materials asso
 
 For inquiries regarding the full dataset, the automated pipeline architecture, or specific model artifacts, please contact the author directly at **[Yael.elmatad@gmail.com](mailto:Yael.elmatad@gmail.com)**.
 
----
+***
 
-## 8. Immediate Follow Ups
+### Current Ablation Metrics (final $\sigma=3$ sweep)
+| Variant | Mean MAE | Median MAE | Mode MAE | Wall-clock (h) |
+|---|---:|---:|---:|---:|
+| Full model ($\sigma=3$) | 36.54 | 35.94 | 38.50 | 60 |
+| No time deltas | 37.24 | 36.58 | 39.28 | 107 |
+| No time deltas + shuffled order | 37.23 | 36.65 | 39.73 | 145 |
 
-While the initial laboratory validation of **RunTime** has proven the architectural thesis, the following immediate follow-ups will (1) isolate which components drive the gains, (2) remove remaining sources of syntactic awkwardness in the grammar, and (3) validate generality beyond the NYRR domain. The time-token and swapped-grammar ablations below are running now, together with a sequence-shuffled variant to prevent cadence inference from token order.
+Removing the cadence tokens raises median MAE by roughly 1.8% (35.94→36.58) while lengthening convergence from 60h to about 107h, and shuffling the order adds another ~0.5% penalty (36.58→36.65) with wall-clock costs climbing to ~145h. These metrics, drawn from the final $\sigma=3$ sweep, demonstrate that the cadence tokens simultaneously sharpen accuracy and accelerate learning, especially for longer histories where the run-time figure (Figure~\ref{fig:mae_ablation}) shows growing gaps between the variants.
 
-*   **Time-Token Ablation (Remove Temporal Deltas Entirely)**: Run a controlled ablation study where the temporal delta tokens (`d_next`, `d_fin`) are removed (or replaced with a constant placeholder) to quantify how much of RunTime’s performance is attributable to explicit cadence tokens versus the remaining contextual and historical performance tokens.  Age is also removed except for the age at target race to avoid age becoming a proxy time token.
-*   **Sequence-Shuffled Time Ablation**: Repeat the time-token ablation but randomly shuffle the stride order so cadence must be recovered without relying on fixed positions, isolating whether degradation tracks the tokens themselves or the broader sequence structure.
-*   **Swapped-Token Grammar (pace before cadence as the new default)**: Each 11-token event block now emits the `pace` token before the temporal deltas (`d_next`, `d_fin`), preventing the model from learning future-gap leakage. This is the canonical stride—older ordering is no longer run because it exposes the model to future cadence.
-
-*   **Zero-History Baseline (Static Covariates Only)**: Train and evaluate a model that predicts the target outcome using only the **current covariates** (no prior-event history at all), under the same entity-disjoint split discipline. This provides an apples-to-apples comparison against the tabular **XGBoost** baseline and isolates the incremental value of sequential context and cadence tokens beyond static features.
-
-*   **External Validation on MIMIC‑IV (Time-to-Next-Admission PDF)**: Apply RunTime to MIMIC‑IV hospital trajectories to predict the **distribution of time to next admission** at each discharge, using **entity-disjoint (patient-disjoint)** splits. This provides a clinically relevant, non-sports validation setting where (a) event timing is inherently irregular, (b) uncertainty is critical, and (c) censoring can be handled explicitly (e.g., via a “no readmission within window” token or survival-style evaluation).
-
-*   **Continuous embedding ablation**: Replace the quantized temperature/humidity/pace bins with their continuous counterparts and retrain under the same split discipline to prove that discretization, not just model capacity, drives the gains.
-
-*   **Time-binning experiment**: Bin the `weeks_since_last` gap token (e.g., coarse logarithmic buckets) and compare against the continuous delta to validate whether explicit time discretization provides additional signal or simply reduces cadence fidelity.
-
-**[WIP] Early ablation observations:** swapped-token grammar is keeping up with or slightly improving on the original ordering, the time-token ablation (with age dropped except for the final prediction race age) introduces a modest degradation, and the sequence-shuffled variant yields the largest drop. We are relating these degradations to sequence length and actual time gaps to determine whether the losses track missing cadence information, shorter histories, or both.
-
----
+### Follow-up directions (ongoing)
+We continue to explore zero-history baselines, MIMIC-IV validation, continuous embedding variants, and time-binning experiments, but the completed ablation table above now captures the key architectural trade-offs.
 
 ### Appendix: Technical Implementation
-*   **Architecture**: RunTime (Decoder-only Transformer: 6 layers, 8 heads, 512-dim embeddings).
-*   **Context Window**: 327 tokens (supporting up to 30 historical event blocks after dropping the misc week-0 tokens that no longer enter the stride sequence).
-*   **Regularization**: 0.1 Dropout, 1e-2 Weight Decay.
-*   **Loss**: Cross-Entropy over Gaussian-integrated soft targets ($\sigma = 3.0$ seconds).
-*   **Optimizer**: AdamW ($lr = 2e-4$) with `ReduceLROnPlateau` scheduler.
-*   **Hardware**: Trained on a single Lambda Cloud node (NVIDIA GPU).
+- **Architecture**: RunTime (decoder-only Transformer: 6 layers, 8 heads, 512-dim embeddings).
+- **Context Window**: 327 tokens (supporting up to 30 historical event blocks while keeping the stride aligned without future cadence leakage).
+- **Regularization**: 0.1 Dropout, 1e-2 Weight Decay.
+- **Loss**: Cross-Entropy over Gaussian-integrated soft targets ($\sigma = 3.0$ seconds).
+- **Optimizer**: AdamW ($lr = 2e-4$) with `ReduceLROnPlateau` scheduler.
+- **Hardware**: Trained on a single Lambda Cloud node (NVIDIA GPU).
 
----
+***
 
 
 
@@ -591,7 +603,7 @@ You can connect with her on **[LinkedIn](https://www.linkedin.com/in/yaelelmatad
 
 This work was conceived during Yael's batch at the **[Recurse Center](https://www.recurse.com)** (Fall 2024). She is deeply grateful to the RC community for providing generous space to explore these ideas. She also wants to acknowledge **Andrej Karpathy's _Zero to Hero_** series, which provided the foundational intuition for building and training the Transformer architectures at the heart of this project.
 
----
+***
 
 ## References
 

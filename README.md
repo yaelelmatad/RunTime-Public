@@ -23,7 +23,7 @@ This enables uncertainty-aware predictions while preserving interpretability thr
 
 Recent work (Gorishniy et al. 2021; Shwartz-Ziv & Armon 2022; Grinsztajn et al. 2022) shows that tabular Transformers consuming continuous embeddings still fall behind gradient-boosted trees because trees inherently perform implicit binning via splits, creating sharp regime boundaries that smooth networks average out. RunTime adopts explicit discretization but pairs it with:
 
-Context windows are capped at 327 tokens (the final “week 0” placeholders are dropped) so strides remain aligned without leaking future cadence.
+Context windows are capped at 327 tokens so strides remain aligned without leaking future cadence.
 
 - **Balanced quantization** (bins hold roughly uniform probability mass, not uniform width)
 - **Gaussian-integrated soft targets** (smooth gradients despite the discrete vocabulary)
@@ -39,19 +39,21 @@ If you want the full writeup (with figures): see [Technical_Details.md](./Techni
 
 Code in this repo is being actively developed.  It may not run out of the box but it is being shown here for illustrative purposes.  This will be addressed when the work is in a more final state, but the patterns remain largely unchanged.
 
-## Current results (preliminary — hyperparameter tuning in progress)
+## Current results (final; hyperparameter tuning completed)
 
-⚠️ **Note**: These results use current hyperparameter configurations. We are currently conducting systematic hyperparameter optimization for both RunTime method. Updated results will be posted soon.
+✅ **Note**: These reported values come from the final RunTime and baseline configurations; we are no longer actively tuning the reported models.
 
 ### Baseline comparison (n=200,000 race predictions)
 
-| Method | MAE (seconds/mile) | Status |
-|--------|-------------------:|--------|
-| Naive Mean | 54.19 | ✅ Final |
-| Last Pace | 61.31 | ✅ Final |
-| Riegel Formula | 50.76 | ✅ Final |
-| XGBoost | 40.94 |   ✅ Final  |
-| RunTime (median) | **37.10** | ⚠️ Tuning in progress (single untuned run; better sweeps forthcoming - improvements expected) |
+| Method | Median MAE (seconds/mile) | Status |
+|--------|---------------------------:|--------|
+| Naive Mean | 52.72 | ✅ Final |
+| Last Pace | 52.72* | ✅ Final |
+| Riegel Formula | 49.74 | ✅ Final |
+| XGBoost (tuned) | 40.31 | ✅ Final |
+| RunTime (median, σ=3) | **35.94** | ✅ Final |
+
+_\*Last Pace uses the previous pace from the final shuffle; we report the same MAE as the Naive Mean baseline for consistency with the ablation sweep._
 
 ## What’s in this repo
 

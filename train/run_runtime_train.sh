@@ -35,3 +35,7 @@ echo "[run_runtime_train] PY_BIN=${PY_BIN}"
 exec "${PY_BIN}" "${ROOT_DIR}/train/Runtime_Trainer.py" --config "${CONFIG}"
 
 
+
+
+
+
