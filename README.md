@@ -43,18 +43,16 @@ Code in this repo is being actively developed.  It may not run out of the box bu
 
 ✅ **Note**: These reported values come from the final RunTime and baseline configurations; we are no longer actively tuning the reported models.
 
-### Baseline comparison (n=200,000 race predictions)
+### Benchmark comparison (converged sweep)
 
-| Method | Median MAE (seconds/mile) | Status |
-|--------|---------------------------:|--------|
-| Naive Mean | 52.72 | ✅ Final |
-| Last Pace | 52.72* | ✅ Final |
-| Riegel Formula | 49.74 | ✅ Final |
-| XGBoost (tuned) | 40.31 | ✅ Final |
-| RunTime (median, σ=3) | **35.94** | ✅ Final |
+| Model | Mean MAE | Median MAE | Mode MAE | Median RMSE |
+| --- | ---: | ---: | ---: | ---: |
+| RunTime (σ=3) | **36.54** | **35.94** | **38.50** | **71.83** |
+| XGBoost (tuned) | 40.31 | 40.31 | 40.31 | 73.15 |
+| Naive mean | 52.72 | 52.72 | 52.72 | 88.16 |
+| Riegel formula | 49.74 | 49.74 | 49.74 | 94.71 |
 
-_\*Last Pace uses the previous pace from the final shuffle; we report the same MAE as the Naive Mean baseline for consistency with the ablation sweep._
-
+These numbers mirror Table 1 in `paper/RunTime_Tabular_Main.pdf`, reporting the converged σ=3 sweep’s mean/median/mode MAE (plus median RMSE) alongside the classical baselines for a consistent comparison.
 ## What’s in this repo
 
 ### Core training + evaluation (`train/`)
