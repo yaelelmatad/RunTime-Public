@@ -33,7 +33,7 @@ This lets RunTime model regime-specific behavior like trees while keeping the Tr
 
 **GitHub repo:** [yaelelmatad/RunTime-Public](https://github.com/yaelelmatad/RunTime-Public)
 
-If you want the full writeup (with figures): see [Technical_Details.md](./Technical_Details.md) (or the rendered PDF: [Technical_Details.pdf](./Technical_Details.pdf)).
+If you want the full writeup (with figures): see `paper/RunTime_Tabular_Main.tex` and the rendered PDF at `paper/RunTime_Tabular_Main.pdf`.
 
 ## Status: Work in Progress
 
@@ -59,9 +59,9 @@ _\*Last Pace uses the previous pace from the final shuffle; we report the same M
 
 ### Core training + evaluation (`train/`)
 
-- `train/Runtime_Trainer.py`: Train the RunTime Transformer from a YAML config (supports CUDA / Apple MPS / CPU).
+- `train/runtime_trainer.py`: Train the RunTime Transformer from a YAML config (supports CUDA / Apple MPS / CPU).
 - `train/runtime_trainer_config.yaml`: Default training config for this standalone repo (points at the included sample shards).
-- `train/Benchmark_Baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost).
+- `train/benchmark_baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost).
 - `train/Inspect_Model_Outputs.ipynb`: Notebook used to compute aggregate metrics / visualizations from saved predictions.
 - `train/Inspect_Model_Activations.ipynb`: Attention/activation inspection + figure export helpers.
 - `train/setup_cloud.sh`: Convenience setup script intended for fresh GPU machines.
@@ -95,10 +95,8 @@ Note: the *conceptual* order is “hydration/tokenization → final dataset shar
 
 ### Figures + paper artifacts
 
-- `figures/`: Exported plots referenced in the technical doc / notebooks.
-- [`Technical_Details.md`](./Technical_Details.md): Technical writeup (Markdown).
-- [`Technical_Details.pdf`](./Technical_Details.pdf): Rendered technical writeup (PDF).
-- `generate_white_paper_pdf.sh`, `White_Paper_Template.tex`: Build `Technical_Details.pdf` from `Technical_Details.md` via Pandoc.
+- `figures/`: Exported plots referenced in the paper / notebooks.
+- `paper/`: LaTeX source for `RunTime_Tabular_Main.pdf` plus bibliography and figure assets.
 
 ## Quickstart (runs on the included sample data)
 
@@ -110,7 +108,7 @@ python -m pip install -r requirements.txt
 
 ### 2) Run baselines (naive / last-pace / XGBoost)
 
-`Benchmark_Baselines.py` takes one or more `*.pkl.gz` shard paths and writes artifacts to an explicit output directory. A convenience wrapper is included as `train/run_xgboost_tuning.sh`.
+`benchmark_baselines.py` takes one or more `*.pkl.gz` shard paths and writes artifacts to an explicit output directory. A convenience wrapper is included as `train/run_xgboost_tuning.sh`.
 
 ```bash
 bash train/run_xgboost_tuning.sh
@@ -124,29 +122,58 @@ To enable randomized hyperparameter search:
 TUNE=1 N_TRIALS=25 MAX_FILES=10 bash train/run_xgboost_tuning.sh
 ```
 
-### 3) Train RunTime (from YAML config)
+### 3) Train RunTime (multiple configs)
 
-The trainer is config-driven via `--config`:
+RunTime has three supported configs:
+
+1. **Adaptive sigma default** (`runtime_trainer_adaptive_sigma.yaml`) – the main reported model.
+2. **Time-token ablation** (`runtime_trainer_time_token_ablation.yaml`) – drops the time token and keeps only the final age marker.
+3. **Shuffled ablation** (`runtime_trainer_shuffled_ablation.yaml`) – drops the time token (like the time-token ablation) but feeds the remaining stride blocks in randomized order to test order sensitivity.
+
+Each variant has its own trainer entry point.  
 
 ```bash
+# adaptive sigma (main experiment)
 bash train/run_runtime_train.sh
+
+# time-token ablation (runs the specialized ablation trainer)
+python train/runtime_trainer_ablation.py --config train/runtime_trainer_time_token_ablation.yaml
+
+# shuffled ablation (uses its own trainer)
+python train/runtime_trainer_ablation_shuffled.py --config train/runtime_trainer_shuffled_ablation.yaml
 ```
 
-Checkpoints are saved under `train/<save_dir>/<run_name>/` as configured in `train/runtime_trainer_config.yaml` (defaults to `checkpoints_clean_prod/Production_Scale_v2_HighCap/`).
+Checkpoints are saved under `train/<save_dir>/<run_name>/` as configured in each YAML (defaults to `checkpoints_clean_prod/Production_Scale_v2_HighCap/` for the adaptive run). If any config enables `use_wandb: true`, set `WANDB_API_KEY` before running so the logs reach WandB (otherwise the key can stay local to the YAML).
 
-If `use_wandb: true` in the config, set `WANDB_API_KEY` in your environment (recommended) or populate `wandb_api_key` in the YAML (not recommended to commit).
+### 4) Evaluate predictions
 
-### 4) (Optional) Run a sweep
-
-This repo includes a lightweight random sweep runner (no W\&B sweeps required) that writes generated configs under `train/sweeps/` by default.
+Use `train/evaluate_models.py` (or the parallel-aware `train/evaluate_models_parallel.py`) to load saved checkpoints, replay inference, and compute MAE / calibration metrics. Both scripts (and the `evaluate/` notebooks) rely on the shared inference library `train/runtime_inference.py`, which exposes the `RuntimeModelInference` helper, split loaders, and calibration utilities.
 
 ```bash
-# build configs only
-bash train/run_runtime_sweep.sh build
+# use a config file that lists checkpoints / splits
+python train/evaluate_models.py --config evaluate/eval_config.yaml
 
-# run a single trial (index 0)
-bash train/run_runtime_sweep.sh run_one 0
+# or run with on-the-fly arguments
+python train/evaluate_models.py --input-glob "./data/samples/*.pkl.gz" \
+    --models adaptive:train/checkpoints_clean_prod/Production_Scale_v2_HighCap_Corrected/checkpoint.pt \
+    --num-examples 5000 \
+    --output evaluate/results_adaptive.pickle
 ```
+
+When you open the notebooks in `evaluate/`, launch Jupyter from the repo root so that `train/` is already on `sys.path` (they append `Path(__file__).resolve().parents[1]` to `sys.path` as a fallback). This makes `from runtime_inference import ...` work consistently across scripts, notebooks, and CLI tools.
+
+```bash
+# use a config file that lists checkpoints / splits
+python train/evaluate_models.py --config evaluate/eval_config.yaml
+
+# or run with on-the-fly arguments
+python train/evaluate_models.py --input-glob "./data/samples/*.pkl.gz" \
+    --models adaptive:train/checkpoints_clean_prod/Production_Scale_v2_HighCap_Corrected/checkpoint.pt \
+    --num-examples 5000 \
+    --output evaluate/results_adaptive.pickle
+```
+
+The `evaluate/` folder now holds notebooks revisiting the calibration sweep, activation inspection, and runner distribution plots. E.g., open `evaluate/Plot_Model_Results.ipynb` after running the evaluation script to generate the dashboards used in the writeup.
 
 ### Running on Lambda (GPU quickstart)
 
@@ -156,18 +183,25 @@ On a fresh Ubuntu GPU machine:
 git clone git@github.com:yaelelmatad/RunTime-Public.git
 cd RunTime-Public
 
-# one-time setup (creates .venv and installs deps)
+# Create the venv + install deps
 bash train/setup_cloud.sh
 
-# optional: enable W&B
+# The setup script installs cuda-enabled PyTorch and other packages into ~/.local; add it to PATH:
+export PATH="$HOME/.local/bin:$PATH"
+
+# Optional: set WANDB before training
 export WANDB_API_KEY="..."
 
-# run baselines
-bash train/run_xgboost_tuning.sh
+# Verify the machine via the Lambda helper (checks CUDA + data shards):
+bash train/run-scripts/setup_lambda.sh
 
-# run training (checkpoints under train/checkpoints_clean_prod/<run_name>/)
-bash train/run_runtime_train.sh
+# Run baselines / trainer / evaluation as above:
+bash train/run_xgboost_tuning.sh
+CONFIG=train/runtime_trainer_adaptive_sigma.yaml bash train/run_runtime_train.sh
+python train/evaluate_models.py --config evaluate/eval_config.yaml
 ```
+
+`train/run-scripts/setup_lambda.sh` already installs system packages (python3-dev, pip) and user-level dependencies like torch, wandb, scipy, and optuna, so rerunning it after reboot ensures the Lambda env stays healthy.
 
 ## Dataset Statistics
 
@@ -182,19 +216,10 @@ bash train/run_runtime_train.sh
 
 ## Performance summary
 
-Filtered run-time metrics appear in `Technical_Details.md`; please refer to that document for the full MAE table.
-## Build the PDF whitepaper
-
-If you have `pandoc` installed:
-
-```bash
-bash generate_white_paper_pdf.sh
-```
-
-This generates/overwrites `Technical_Details.pdf` from `Technical_Details.md`.
+Filtered run-time metrics appear in `paper/RunTime_Tabular_Main.pdf`; consult that document for the full MAE table.
 
 ## License
 
 - **Code**: Apache License 2.0 (see `LICENSE` and `NOTICE`)
-- **Documentation / writeup** (including `Technical_Details.md`): Creative Commons Attribution 4.0 International (see `LICENSE-CC-BY-4.0`)
+- **Documentation / writeup** (including `paper/RunTime_Tabular_Main.tex` and `paper/RunTime_Tabular_Main.pdf`): Creative Commons Attribution 4.0 International (see `LICENSE-CC-BY-4.0`)
 

@@ -36,7 +36,7 @@ if [[ ! -e "${ROOT_DIR}/pipeline/training_splits" ]]; then
 fi
 SPLITS_GLOB="${SPLITS_GLOB:-${SPLITS_GLOB_DEFAULT}}"
 
-SCRIPT="${ROOT_DIR}/train/Benchmark_Baselines.py"
+SCRIPT="${ROOT_DIR}/train/benchmark_baselines.py"
 
 echo "[run_xgboost_tuning] ROOT_DIR=${ROOT_DIR}"
 echo "[run_xgboost_tuning] MAX_FILES=${MAX_FILES} XGB_NUM_BOOST_ROUND=${XGB_NUM_BOOST_ROUND} XGB_EARLY_STOPPING_ROUNDS=${XGB_EARLY_STOPPING_ROUNDS} SEED=${SEED} TUNE=${TUNE} N_TRIALS=${N_TRIALS}"

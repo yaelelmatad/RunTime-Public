@@ -205,6 +205,16 @@ Discretization exposes the discrete regimes trees capture, allowing attention to
 Our experiments confirm that respecting discrete regimes lets Transformers rival tuned gradient boosting. The method generalizes to ordinal regression tasks beyond running; any setting with heterogeneous bin widths can adopt the same discretization plus adaptive smoothing recipe. Limitations include the ongoing adaptive sigma experiments (which we are running), the current lack of overflow bins for tail coverage (which can clip predictions when the pace falls outside the discretized vocabulary), and the fact that all results so far derive from the running dataset—external validation (e.g., MIMIC-IV) remains future work. Adding overflow (and underflow) bins that explicitly model \([b_{\text{min}}, \infty)\) and \((-\infty, b_{\text{max}}]\) would let the model gracefully handle previously unseen extreme paces and is part of the planned extensions.
 \section{Conclusion}
 Explicit discretization, adaptive Gaussian smoothing, and causal time tokens let a Transformer outperform tuned XGBoost on a large entity-disjoint benchmark while producing better-calibrated PDFs. The paper provides both architectural guidance and analysis tooling (stratified calibration) for future tabular work. One could further treat the adaptive sigma schedule like simulated annealing—starting with larger sigma values and slowly tightening them during training—potentially leveraging the softer targets early on for stability while sharpening distributions as the model converges.
+\subsection{Learnable Soft Tokenization}
+Our current approach uses fixed quantile binning for the inputs while applying Gaussian soft targets for outputs. A natural extension would apply the same adaptive Gaussian weighting to the input tokenization, creating a symmetric encoding:
+
+$$\text{embed}(x) = \sum_{i=1}^{K} w_i(x) \cdot \mathbf{e}_i$$
+
+where
+
+$$w_i(x) = \frac{\exp\left(-\frac{(x - c_i)^2}{2\sigma_i^2}\right)}{\sum_j \exp\left(-\frac{(x - c_j)^2}{2\sigma_j^2}\right)}$$
+
+and $\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot w_i)^2}$ uses the same adaptive smoothing formula from Section~3. This would enable end-to-end learning of optimal bin boundaries while preserving the ordinal structure that discrete regimes provide.
 \clearpage
 \appendix
 \section{Additional Analyses}

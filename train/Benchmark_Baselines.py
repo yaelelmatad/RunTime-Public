@@ -10,6 +10,7 @@ import pickle
 import gzip
 import os 
 import glob
+import time
 from sklearn.metrics import mean_absolute_error
 
 # --- Distance token -> numeric miles (mirrors Runtime/train/Inspect_Model_Outputs.ipynb) ---
@@ -36,25 +37,16 @@ DISTANCE_MAP_MILES = {
 
 def _sample_xgb_params(rng: np.random.RandomState):
     """
-    Random search over a tight-ish space targeted at this dataset.
-    Keeps feature engineering unchanged; only tunes the model.
+    Random search space for XGBoost tuning. Keeps feature engineering unchanged.
     """
-    # Depth: user expectation 7-9, but keep a bit of spread around it.
     max_depth = int(rng.choice([5, 6, 7, 8, 9, 10]))
-
-    # Learning rate: focus on 0.01-0.03, with a couple slightly higher options.
     eta = float(rng.choice([0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05]))
-
-    # Regularization / split constraints
     min_child_weight = float(rng.choice([1, 2, 3, 5, 7, 10]))
     gamma = float(rng.choice([0.0, 0.1, 0.25, 0.5, 1.0, 2.0]))
     reg_alpha = float(rng.choice([0.0, 1e-4, 1e-3, 1e-2, 0.05, 0.1]))
     reg_lambda = float(rng.choice([0.5, 1.0, 2.0, 5.0, 10.0]))
-
-    # Subsampling
     subsample = float(rng.choice([0.7, 0.8, 0.9, 1.0]))
     colsample_bytree = float(rng.choice([0.7, 0.8, 0.9, 1.0]))
-
     return {
         'objective': 'reg:squarederror',
         'eval_metric': 'mae',
@@ -66,10 +58,8 @@ def _sample_xgb_params(rng: np.random.RandomState):
         'colsample_bytree': colsample_bytree,
         'reg_alpha': reg_alpha,
         'reg_lambda': reg_lambda,
-        # Slightly more robust on noisy regression
         'tree_method': 'hist',
     }
-
 
 # --- 0. DATA CLASSES (Same as Transformer) ---
 
@@ -218,48 +208,41 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('file_paths', metavar='FILE', type=str, nargs='*',
                         help="One or more streamed-pickle gzip files (runners_split_*.pkl.gz).")
-    parser.add_argument('--splits_glob', type=str,
-                        default=os.path.join("Runtime", "pipeline", "training_splits", "runners_split_*.pkl.gz"),
-                        help="Glob for split shards to load when no FILE paths are provided.")
-    parser.add_argument('--max_files', type=int, default=50,
-                        help="When using --splits_glob, load at most this many shards (sorted).")
+    parser.add_argument('--splits_glob', type=str, default="",
+                        help="If provided (and no FILE args), glob for shards to load.")
+    parser.add_argument('--max_files', type=int, default=0,
+                        help="If using --splits_glob, load at most this many shards (sorted). 0 means all.")
     parser.add_argument('--output_dir', type=str, default='.',
                         help="Where to write xgboost_model.json, xgboost_feature_columns.pickle, baseline_results.json")
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--xgb_num_boost_round', type=int, default=500)
     parser.add_argument('--xgb_early_stopping_rounds', type=int, default=30)
-    parser.add_argument('--tune', action='store_true',
-                        help="Run randomized hyperparameter search (keeps feature engineering unchanged).")
+    # Tuning is ON by default (you can disable with --no_tune).
+    tune_group = parser.add_mutually_exclusive_group()
+    tune_group.add_argument('--tune', dest='tune', action='store_true',
+                            help="Enable random hyperparameter search (keeps features the same).")
+    tune_group.add_argument('--no_tune', dest='tune', action='store_false',
+                            help="Disable tuning and train a single model with the default params.")
+    parser.set_defaults(tune=True)
     parser.add_argument('--n_trials', type=int, default=25,
-                        help="Number of random hyperparameter trials when --tune is set.")
+                        help="Number of random trials when tuning is enabled.")
     args = parser.parse_args()
 
     # CRITICAL: Use same seed as Transformer for fair comparison
     random.seed(args.seed)
     np.random.seed(args.seed)
-
-    # If no explicit shard paths are provided, default to first N shards from the glob.
+    
+    # Allow script-driven runs: use --splits_glob when no explicit FILE args are provided.
     file_paths = list(args.file_paths) if args.file_paths else []
-    if len(file_paths) == 0:
+    if not file_paths and args.splits_glob:
         candidates = sorted(glob.glob(args.splits_glob))
         if not candidates:
-            print(f"ERROR: no files found for --splits_glob: {args.splits_glob}")
+            print(f"ERROR: no files matched --splits_glob: {args.splits_glob}")
             sys.exit(1)
-        if args.max_files is not None and args.max_files > 0:
+        if args.max_files and int(args.max_files) > 0:
             candidates = candidates[: int(args.max_files)]
         file_paths = candidates
 
-    print(f"Using {len(file_paths)} split shards.")
-    if len(file_paths) <= 5:
-        for p in file_paths:
-            print(f"  - {p}")
-    else:
-        print(f"  - {file_paths[0]}")
-        print(f"  - {file_paths[1]}")
-        print(f"  - {file_paths[2]}")
-        print("  - ...")
-        print(f"  - {file_paths[-1]}")
-    
     RUNNERS_DATA = load_runners_data_from_files(file_paths)
     if not RUNNERS_DATA:
         print("No data loaded.")
@@ -318,7 +301,6 @@ if __name__ == '__main__':
         dtrain = xgb.DMatrix(X_train, label=y_train)
         dval = xgb.DMatrix(X_val, label=y_val)
 
-        # Base params (used directly unless tuning is enabled)
         params = {
             'objective': 'reg:squarederror',
             'eval_metric': 'mae',
@@ -331,56 +313,92 @@ if __name__ == '__main__':
             'reg_alpha': 0.0,
             'reg_lambda': 1.0,
             'tree_method': 'hist',
+            'seed': int(args.seed),
         }
-        params['seed'] = int(args.seed)
 
         if args.tune:
             print(f"\nTuning XGBoost (random search; {args.n_trials} trials) ...")
             rng = np.random.RandomState(int(args.seed))
             best = {'mae': float('inf'), 'params': None, 'booster': None}
 
-            # When using low eta, we generally need more rounds; use caller-provided rounds.
-            num_boost_round = int(args.xgb_num_boost_round)
-            early_stopping_rounds = int(args.xgb_early_stopping_rounds)
+            # Per-trial artifacts
+            os.makedirs(args.output_dir, exist_ok=True)
+            trials_dir = os.path.join(args.output_dir, "trials")
+            os.makedirs(trials_dir, exist_ok=True)
+            trials_jsonl_path = os.path.join(trials_dir, "trials.jsonl")
 
             for t in range(int(args.n_trials)):
                 trial_params = _sample_xgb_params(rng)
                 trial_params['seed'] = int(args.seed)
-
+                t0 = time.time()
                 booster_t = xgb.train(
                     params=trial_params,
                     dtrain=dtrain,
-                    num_boost_round=num_boost_round,
+                    num_boost_round=int(args.xgb_num_boost_round),
                     evals=[(dval, 'val')],
-                    early_stopping_rounds=early_stopping_rounds,
+                    early_stopping_rounds=int(args.xgb_early_stopping_rounds),
                     verbose_eval=False,
                 )
+                # Compute MAE explicitly on the validation set (avoid relying on xgboost internals).
+                preds_t = booster_t.predict(dval)
+                trial_mae = float(mean_absolute_error(y_val, preds_t))
+                dt = time.time() - t0
+                best_iter = getattr(booster_t, "best_iteration", None)
+                best_score = getattr(booster_t, "best_score", None)
 
-                # With eval_metric=mae + early stopping, best_score is val-mae at best iteration.
-                try:
-                    trial_mae = float(getattr(booster_t, "best_score", np.nan))
-                except Exception:
-                    trial_mae = np.nan
-
-                if not np.isnan(trial_mae) and trial_mae < best['mae']:
+                improved = trial_mae < best['mae']
+                if improved:
                     best = {'mae': trial_mae, 'params': trial_params, 'booster': booster_t}
-                    short_params = {
-                        'eta': trial_params['eta'],
-                        'max_depth': trial_params['max_depth'],
-                        'min_child_weight': trial_params['min_child_weight'],
-                        'gamma': trial_params['gamma'],
-                        'reg_alpha': trial_params['reg_alpha'],
-                        'reg_lambda': trial_params['reg_lambda'],
-                        'subsample': trial_params['subsample'],
-                        'colsample_bytree': trial_params['colsample_bytree'],
+
+                # Save each trial (model + params + metrics)
+                trial_tag = f"trial_{t+1:03d}_mae_{trial_mae:.3f}".replace(".", "p")
+                trial_model_path = os.path.join(trials_dir, f"{trial_tag}.json")
+                trial_params_path = os.path.join(trials_dir, f"{trial_tag}_params.json")
+                try:
+                    booster_t.save_model(trial_model_path)
+                except Exception:
+                    # If model saving fails for any reason, keep going (still record params/metrics).
+                    trial_model_path = ""
+
+                try:
+                    import json
+                    with open(trial_params_path, "w") as f:
+                        json.dump(trial_params, f, indent=2)
+                except Exception:
+                    trial_params_path = ""
+
+                try:
+                    import json
+                    rec = {
+                        "trial": t + 1,
+                        "val_mae": trial_mae,
+                        "time_sec": dt,
+                        "params": trial_params,
+                        "model_path": trial_model_path,
+                        "params_path": trial_params_path,
+                        "is_best_so_far": bool(improved),
+                        "best_iteration": best_iter,
+                        "best_score": best_score,
                     }
-                    print(f"  trial {t+1}/{args.n_trials}: best so far mae={best['mae']:.4f} params={short_params}")
+                    with open(trials_jsonl_path, "a") as f:
+                        f.write(json.dumps(rec) + "\n")
+                except Exception:
+                    pass
+
+                print(
+                    f"  trial {t+1:>3}/{int(args.n_trials):<3} | "
+                    f"val_mae={trial_mae:7.3f}s | "
+                    f"best={best['mae']:7.3f}s | "
+                    f"best_iter={best_iter if best_iter is not None else 'NA'} | "
+                    f"time={dt:6.1f}s | "
+                    f"{'NEW_BEST' if improved else ''}"
+                )
 
             if best['booster'] is None:
                 raise RuntimeError("Tuning failed to produce a valid booster.")
             booster = best['booster']
             params = best['params']
-            print(f"Tuning complete. Best val MAE (early-stopped): {best['mae']:.4f}")
+            print(f"Tuning complete. Best val MAE: {best['mae']:.4f}")
         else:
             print(f"\nTraining XGBoost (continuous tokens; distance_miles numeric, conditions one-hot)...")
             booster = xgb.train(
@@ -401,6 +419,7 @@ if __name__ == '__main__':
         xgb_model_path = os.path.join(args.output_dir, "xgboost_model.json")
         xgb_cols_path = os.path.join(args.output_dir, "xgboost_feature_columns.pickle")
         baseline_json_path = os.path.join(args.output_dir, "baseline_results.json")
+        best_params_path = os.path.join(args.output_dir, "xgboost_best_params.json")
         fi_gain_csv_path = os.path.join(args.output_dir, "xgboost_feature_importance_gain.csv")
         fi_weight_csv_path = os.path.join(args.output_dir, "xgboost_feature_importance_weight.csv")
         fi_cover_csv_path = os.path.join(args.output_dir, "xgboost_feature_importance_cover.csv")
@@ -417,6 +436,14 @@ if __name__ == '__main__':
         with open(baseline_json_path, "w") as f:
             import json
             json.dump(baseline_results, f, indent=4)
+
+        # Save the params used for the final model (best if tuned; default otherwise)
+        try:
+            import json
+            with open(best_params_path, "w") as f:
+                json.dump(params, f, indent=2)
+        except Exception:
+            pass
 
         # --- FEATURE IMPORTANCE ---
         # Note: With xgboost.train, feature names in get_score() are f0, f1, ...
@@ -456,6 +483,12 @@ if __name__ == '__main__':
         print(f"  - {xgb_model_path}")
         print(f"  - {xgb_cols_path}")
         print(f"  - {baseline_json_path}")
+        if os.path.exists(best_params_path):
+            print(f"  - {best_params_path}")
+        if args.tune:
+            trials_dir = os.path.join(args.output_dir, "trials")
+            if os.path.isdir(trials_dir):
+                print(f"  - {trials_dir}/ (per-trial models + params + trials.jsonl)")
         if os.path.exists(fi_gain_csv_path):
             print(f"  - {fi_gain_csv_path}")
         if os.path.exists(fi_weight_csv_path):

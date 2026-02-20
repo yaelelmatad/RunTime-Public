@@ -1,0 +1,72 @@
+# Example configuration file for evaluate_models.py
+# 
+# Usage:
+#   python evaluate_models.py --config evaluation_config_example_with_seed.yaml
+#
+#   Or with parallel evaluation:
+#   python evaluate_models_parallel.py --config evaluation_config_example_with_seed.yaml --parallel
+
+# Glob pattern for input training split files
+# Note: The actual files are .pkl.gz, not .pickle
+# Using the same pattern as the original notebook (matches files 080-089):
+input_glob: "/Users/yaelelmatad/Desktop/nyrr-transform/Runtime/pipeline/training_splits/runners_split_[0][8][0-9].pkl.gz"
+# Or use a simpler pattern to load all files:
+# input_glob: "../pipeline/training_splits/*.pkl.gz"
+
+# Number of examples to evaluate
+num_examples: 100000
+
+# Output pickle file path
+output: "evaluation_results_100000_example.pickle"
+
+# Path to pace lookup file
+pace_lookup: "../data/pace_lookup.pickle"
+
+# Device to use (cpu/cuda/mps)
+device: "cpu"
+
+# Random seed for reproducibility (ensures same examples and calibration samples on re-runs)
+# Default: 42 if not specified
+random_seed: 42
+
+# Optional: XGBoost model paths (if you want to include XGBoost baseline)
+xgb_model: "xgb_first_50_continuous/xgboost_model.json"
+xgb_features: "xgb_first_50_continuous/xgboost_feature_columns.pickle"
+
+# List of models to evaluate
+# Each model entry has:
+#   - name: Internal identifier (used as key in results)
+#   - checkpoint: Path to model checkpoint (.pt file)
+#   - config: Path to model config YAML file
+#   - display_name: Human-readable name for plots
+models:
+  - name: "model_sigma3p5"
+    checkpoint: "ablation-studies/Production_Scale_Lambda3p5_Slower/best_model.pt"
+    config: "ablation-studies/Production_Scale_Lambda3p5_Slower/config_copy.yaml"
+    display_name: "Full Model, σ = 3.5"
+  
+  - name: "model_sigma6"
+    checkpoint: "ablation-studies/Production_Scale_Lambda6p0_Slower/best_model.pt"
+    config: "ablation-studies/Production_Scale_Lambda6p0_Slower/config_copy.yaml"
+    display_name: "Full Model, σ = 6"  
+  
+  - name: "model_sigma1"
+    checkpoint: "ablation-studies/Production_Scale_Lambda1p0_Slower/best_model.pt"
+    config: "ablation-studies/Production_Scale_Lambda1p0_Slower/config_copy.yaml"
+    display_name: "Full Model, σ = 1"
+
+  - name: "model_adaptive_sigma"
+    checkpoint: "ablation-studies/Production_Scale_AdaptiveSigma_SQRT/best_model.pt"
+    config: "ablation-studies/Production_Scale_AdaptiveSigma_SQRT/config_copy.yaml"
+    display_name: "Full Model, Adaptive Sigma"
+
+  - name: "model_ablation"
+    checkpoint: "ablation-studies/Production_Scale_v2_HighCap_Ablation_NoTime_AgeLastFront_Corrected/best_model.pt"
+    config: "ablation-studies/Production_Scale_v2_HighCap_Ablation_NoTime_AgeLastFront_Corrected/config_copy.yaml"
+    display_name: "Time Token Ablation"
+  
+  - name: "model_ablation_shuffled"
+    checkpoint: "ablation-studies/Production_Scale_v2_HighCap_Ablation_NoTime_AgeLastFront_Shuffled_Corrected_Restart_1/best_model.pt"
+    config: "ablation-studies/Production_Scale_v2_HighCap_Ablation_NoTime_AgeLastFront_Shuffled_Corrected_Restart_1/config_copy.yaml"
+    display_name: "Time Token Ablation with Shuffled Sequence"
+

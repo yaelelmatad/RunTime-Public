@@ -7,14 +7,14 @@ set -euo pipefail
 #   bash train/run_runtime_train.sh
 #
 # Override defaults:
-#   CONFIG=train/runtime_trainer_config.yaml WANDB_API_KEY=... bash train/run_runtime_train.sh
+#   CONFIG=train/runtime_trainer_adaptive_sigma.yaml WANDB_API_KEY=... bash train/run_runtime_train.sh
 #
 # Notes:
 # - This wrapper does not edit your YAML. For full-data runs, point `data.splits_dir` at
 #   `../pipeline/training_splits` (RunTime-Full) or your own shard directory.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG="${CONFIG:-${ROOT_DIR}/train/runtime_trainer_config.yaml}"
+CONFIG="${CONFIG:-${ROOT_DIR}/train/runtime_trainer_adaptive_sigma.yaml}"
 
 PY_BIN="${PY_BIN:-python}"
 if [[ -x "${ROOT_DIR}/.venv/bin/python" ]]; then
@@ -32,7 +32,8 @@ echo "[run_runtime_train] ROOT_DIR=${ROOT_DIR}"
 echo "[run_runtime_train] CONFIG=${CONFIG}"
 echo "[run_runtime_train] PY_BIN=${PY_BIN}"
 
-exec "${PY_BIN}" "${ROOT_DIR}/train/Runtime_Trainer.py" --config "${CONFIG}"
+exec "${PY_BIN}" "${ROOT_DIR}/train/runtime_trainer.py" --config "${CONFIG}"
+
 
 
 

@@ -1,0 +1,54 @@
+# Production-scale config (single run) with ablation + shuffled races:
+# - Drop week_delta_* tokens entirely
+# - Drop all age_* tokens except keep the age token from the final race and move it to the front
+# - Shuffle historical races (but keep final race fixed)
+#
+# Sequence becomes: [age_at_final] + [shuffled 8-token blocks] + [7-token final block]
+# With max_races_to_consider=30 (includes final race), max input length is 1 + 8*(30-1) + 7 = 240.
+#
+# This version uses corrected hyperparameters.
+
+model:
+  d_model: 512
+  nhead: 8
+  num_layers: 6          # CHANGED from 7
+  dim_feedforward: 2048
+  dropout: 0.12          # CHANGED from 0.138
+  max_races_to_consider: 30
+  max_seq_length: 240
+
+training:
+  batch_size: 64
+  learning_rate: 0.0001  # CHANGED from 0.0000092 (1e-4)
+  weight_decay: 0.00118
+  epochs: 100
+  num_workers: 4
+  pin_memory: true
+  use_amp: true
+  val_split: 0.1
+  random_seed: 42
+  smoothing_sigma_seconds: 3.0  # CHANGED from 35.0
+
+data:
+  splits_dir: "../pipeline/training_splits"
+  pace_lookup: "../data/pace_lookup.pickle"
+  num_files_to_load: 50
+
+  # Grammar layout
+  block_stride: 11
+
+  # Ablation controls
+  ablation_drop_week_deltas: true
+  ablation_last_age_front: true
+  ablation_out_stride: 8
+  ablation_shuffle_races: true
+
+logging:
+  project_name: "RunTime-Clean"
+  run_name: "Production_Scale_v2_HighCap_Ablation_NoTime_AgeLastFront_Shuffled_Corrected"
+  log_interval: 10
+  save_dir: "checkpoints_clean_prod"
+  use_wandb: true
+
+
+

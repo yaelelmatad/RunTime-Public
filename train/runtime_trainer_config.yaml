@@ -1,44 +1,55 @@
-# RunTime Trainer Configuration: PRODUCTION SCALE (Higher Capacity)
-# Optimized after initial baseline beat.
+# Production-scale config with original grammar token order (no swapping, no dropping of final time tokens),
+# using corrected hyperparameters.
+#
+# Architecture: standard order
+#   [age, gender, conditions, humidity, temp, feels_like, wind, distance, week_delta_to_final, week_delta_to_next, pace]
+#
+# This is the baseline (non-swapped) version with corrected hyperparameters.
 
 model:
-  d_model: 512           # Increased from 256
+  d_model: 512
   nhead: 8
-  num_layers: 6          # Increased from 4
-  dim_feedforward: 2048  # Increased from 1024
-  dropout: 0.1           # Sharpened from 0.2
+  num_layers: 6          # CHANGED from 7
+  dim_feedforward: 2048
+  dropout: 0.12          # CHANGED from 0.138
   max_races_to_consider: 30
-  max_seq_length: 327
+  max_seq_length: 329
 
 training:
-  batch_size: 256
-  learning_rate: 0.0002  # scheduler will scale it back
-  weight_decay: 0.01
-  epochs: 50
+  batch_size: 64
+  learning_rate: 0.0001  # CHANGED from 0.0000092 (1e-4)
+  weight_decay: 0.00118
+  epochs: 100
   num_workers: 4
   pin_memory: true
   use_amp: true
   val_split: 0.1
   random_seed: 42
-  smoothing_sigma_seconds: 3.0  # Tightened from 5.0 for higher precision
-  # Optional: save latest checkpoint every N steps (useful for sweeps / preemptible runs).
-  # Set to 0 to disable (default: end-of-epoch checkpoints only).
-  checkpoint_interval_steps: 0
-  # If true, also keep immutable step snapshots (can consume disk quickly on long runs).
-  keep_step_checkpoints: false
+  smoothing_sigma_seconds: 3.0  # CHANGED from 35.0
+
+  # To match the old "Production_Scale" behavior more closely, enable per-epoch checkpoints if you want:
+  # save_epoch_checkpoints: true
+  # checkpoint_every_n_epochs: 1
+  # latest_checkpoint_every_n_epochs: 1
 
 data:
-  # For the standalone repo, default to the small sample shards.
-  # Point this at a full `training_splits/` directory for production-scale runs.
-  splits_dir: "../data/samples"
+  splits_dir: "../pipeline/training_splits"
   pace_lookup: "../data/pace_lookup.pickle"
-  num_files_to_load: 2 # Sample shards; increase for larger runs
+  num_files_to_load: 50
+
+  # Grammar layout
+  block_stride: 11
+
+  # Token order controls (original architecture)
+  swap_pace_time_tokens: true   # CHANGED from false
+  drop_final_time_tokens: 0
 
 logging:
   project_name: "RunTime-Clean"
-  run_name: "Production_Scale_v2_HighCap"
+  run_name: "Production_Scale_v2_HighCap_Corrected"
   log_interval: 10
-  save_dir: "checkpoints_clean_prod" # Directories now nested by run_name in code
+  save_dir: "checkpoints_clean_prod"
   use_wandb: true
-  # DO NOT commit API keys. Prefer setting WANDB_API_KEY in the environment.
-  wandb_api_key: ""
+
+
+

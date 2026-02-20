@@ -1,0 +1,47 @@
+model:
+  d_model: 512
+  nhead: 8
+  num_layers: 6        # CHANGED from 7
+  dim_feedforward: 2048
+  dropout: 0.12       # CHANGED from 0.138
+  max_races_to_consider: 30
+  max_seq_length: 329
+
+training:
+  batch_size: 256
+  learning_rate: 0.0007  # CHANGED from 0.0000092 (1e-4)
+  weight_decay: 0.00118
+  epochs: 100
+  num_workers: 4
+  pin_memory: true
+  use_amp: true
+  val_split: 0.1
+  random_seed: 42
+  save_epoch_checkpoints: true
+  checkpoint_every_n_epochs: 1         # mostly ignored if save_epoch_checkpoints is true, but fine
+  latest_checkpoint_every_n_epochs: 1
+  
+  # Adaptive sigma configuration using quadrature formula:
+  # sigma = sqrt(sigma_floor^2 + (k * w)^2), where w is target bin width
+  use_adaptive_sigma: true
+  adaptive_sigma_floor: 2.7    # Minimum sigma value (squared in formula) - if bin = 1 then sigma = sqrt(2.7^2 * 1.5^2) ~ 3.1 for bins that are 2 seonds wide ~ 4
+  adaptive_sigma_k: 1.5        # Scaling factor for bin width
+  # smoothing_sigma_seconds is ignored when use_adaptive_sigma is true
+
+data:
+  splits_dir: "../pipeline/training_splits"
+  pace_lookup: "../data/pace_lookup.pickle"
+  num_files_to_load: 50
+
+  # New token order controls
+  block_stride: 11
+  swap_pace_time_tokens: true
+  drop_final_time_tokens: 2
+
+logging:
+  project_name: "RunTime-Clean"
+  run_name: "Production_Scale_AdaptiveSigma"
+  log_interval: 100
+  save_dir: "checkpoints_clean_prod"
+  use_wandb: true
+
