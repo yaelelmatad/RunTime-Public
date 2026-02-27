@@ -11,15 +11,15 @@
 model:
   d_model: 512
   nhead: 8
-  num_layers: 6          
+  num_layers: 6
   dim_feedforward: 2048
-  dropout: 0.12         
+  dropout: 0.12
   max_races_to_consider: 30
   max_seq_length: 240
 
 training:
   batch_size: 64
-  learning_rate: 0.0001  
+  learning_rate: 0.0001
   weight_decay: 0.00118
   epochs: 100
   num_workers: 4
@@ -27,7 +27,7 @@ training:
   use_amp: true
   val_split: 0.1
   random_seed: 42
-  smoothing_sigma_seconds: 3.0  
+  smoothing_sigma_seconds: 3.0
 
 data:
   splits_dir: "../data/samples"
@@ -49,6 +49,3 @@ logging:
   log_interval: 10
   save_dir: "checkpoints_clean_prod"
   use_wandb: true
-
-
-
