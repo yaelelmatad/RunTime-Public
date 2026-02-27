@@ -81,10 +81,10 @@ class RunTimeTransformer(nn.Module):
         ablation_drop_week_deltas = bool(data_cfg.get('ablation_drop_week_deltas', False))
         ablation_last_age_front = bool(data_cfg.get('ablation_last_age_front', False))
         ablation_out_stride = int(data_cfg.get('ablation_out_stride', 8))
-        swap = bool(data_cfg.get('swap_pace_time_tokens', False))
+        swap = bool(data_cfg.get('swap_pace_time_tokens', True))
         drop_k = int(data_cfg.get('drop_final_time_tokens', 2 if swap else 0))
         max_len = int(m.get('max_seq_length', 512))
-        
+
         if ablation_drop_week_deltas and ablation_last_age_front:
             if 'max_races_to_consider' in m:
                 n_races = int(m['max_races_to_consider'])
@@ -139,16 +139,19 @@ class RunTimeTransformer(nn.Module):
 
 # --- SEQUENCE TRANSFORMATION FUNCTIONS ---
 def swap_pace_time_and_drop_final(seq: list, block_stride: int = 11, drop_final_time_tokens: int = 2) -> list:
-    """
-    Original per-race block (stride=11):
-      [8 feature tokens][time_1][time_2][pace]
-      where 8 features = [age, gender, conditions, humidity, temp, feels_like, wind, distance]
-    
-    Desired per-race block for historical races:
-      [8 feature tokens][pace][time_1][time_2]
-    
-    For the *final* block only, drop the last K time tokens (default K=2) where they are always week_delta_0.
-    So final block becomes: [8 feature tokens][pace]
+    """Swap pace and time-delta tokens within each block to improve causal coherence.
+
+    Original (legacy) block order (stride=11):
+      <features_i> <delta_next_i> <delta_final_i> <pace_i>
+      e.g. [age, gender, cond, humidity, temp, feels, wind, dist] [weeks_to_next] [weeks_to_final] [pace]
+      Final block: [features] [delta_0] [delta_0] [pace_final]
+
+    Swapped (paper) block order:
+      <features_i> <pace_i> <delta_next_i> <delta_final_i>
+      Pace for race i now precedes the cadence gap to race i+1, so the model
+      observes performance before the temporal context of the next event.
+      Final block's trailing [delta_0, delta_0] are redundant and dropped
+      (drop_final_time_tokens=2), ending the sequence on the target pace.
     """
     stride = block_stride
     if not seq or len(seq) < stride or (len(seq) % stride) != 0:
@@ -316,7 +319,7 @@ def transform_sequence(seq: list, config: dict, block_stride: int = 11, shuffle_
     ablation_drop_week_deltas = bool(data_cfg.get('ablation_drop_week_deltas', False))
     ablation_last_age_front = bool(data_cfg.get('ablation_last_age_front', False))
     ablation_shuffle_races = bool(data_cfg.get('ablation_shuffle_races', False))
-    swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', False))
+    swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', True))
     drop_final_time_tokens = int(data_cfg.get('drop_final_time_tokens', 2 if swap_pace_time else 0))
     
     if ablation_drop_week_deltas and ablation_last_age_front:
@@ -503,7 +506,7 @@ class RuntimeModelInference:
         ablation_drop_week_deltas = bool(data_cfg.get('ablation_drop_week_deltas', False))
         ablation_last_age_front = bool(data_cfg.get('ablation_last_age_front', False))
         ablation_out_stride = int(data_cfg.get('ablation_out_stride', 8))
-        swap = bool(data_cfg.get('swap_pace_time_tokens', False))
+        swap = bool(data_cfg.get('swap_pace_time_tokens', True))
         drop_k = int(data_cfg.get('drop_final_time_tokens', 2 if swap else 0))
         
         if 'max_races_to_consider' in self.config['model']:

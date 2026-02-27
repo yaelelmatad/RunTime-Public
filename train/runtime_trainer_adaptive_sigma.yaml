@@ -1,15 +1,15 @@
 model:
   d_model: 512
   nhead: 8
-  num_layers: 6        # CHANGED from 7
+  num_layers: 6        
   dim_feedforward: 2048
-  dropout: 0.12       # CHANGED from 0.138
+  dropout: 0.12      
   max_races_to_consider: 30
   max_seq_length: 329
 
 training:
   batch_size: 256
-  learning_rate: 0.0007  # CHANGED from 0.0000092 (1e-4)
+  learning_rate: 0.0007  
   weight_decay: 0.00118
   epochs: 100
   num_workers: 4
@@ -29,18 +29,15 @@ training:
   # smoothing_sigma_seconds is ignored when use_adaptive_sigma is true
 
 data:
-  splits_dir: "../pipeline/training_splits"
+  splits_dir: "../data/samples"
   pace_lookup: "../data/pace_lookup.pickle"
-  num_files_to_load: 50
+  num_files_to_load: 1
 
-  # New token order controls
   block_stride: 11
-  swap_pace_time_tokens: true
-  drop_final_time_tokens: 2
 
 logging:
-  project_name: "RunTime-Clean"
-  run_name: "Production_Scale_AdaptiveSigma"
+  project_name: "RunTime-Public"
+  run_name: "runtime-adaptive-sigma"
   log_interval: 100
   save_dir: "checkpoints_clean_prod"
   use_wandb: true

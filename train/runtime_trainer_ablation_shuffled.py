@@ -90,7 +90,7 @@ class RunTimeDataset(Dataset):
         self.ablation_shuffle_races = bool(data_cfg.get('ablation_shuffle_races', False))
         
         # Legacy swap_pace_time support (for backward compatibility)
-        self.swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', False))
+        self.swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', True))
         self.drop_final_time_tokens = int(data_cfg.get('drop_final_time_tokens', 2 if self.swap_pace_time else 0))
 
         # Calculate max_len based on ablation settings
@@ -354,7 +354,7 @@ class RunTimeTransformer(nn.Module):
         ablation_drop_week_deltas = bool(data_cfg.get('ablation_drop_week_deltas', False))
         ablation_last_age_front = bool(data_cfg.get('ablation_last_age_front', False))
         ablation_out_stride = int(data_cfg.get('ablation_out_stride', 8))
-        swap = bool(data_cfg.get('swap_pace_time_tokens', False))
+        swap = bool(data_cfg.get('swap_pace_time_tokens', True))
         drop_k = int(data_cfg.get('drop_final_time_tokens', 2 if swap else 0))
         max_len = int(m.get('max_seq_length', 512))
         

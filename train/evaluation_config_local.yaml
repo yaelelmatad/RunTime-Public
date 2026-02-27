@@ -9,9 +9,9 @@
 # Glob pattern for input training split files
 # Note: The actual files are .pkl.gz, not .pickle
 # Using the same pattern as the original notebook (matches files 080-089):
-input_glob: "/Users/yaelelmatad/Desktop/nyrr-transform/Runtime/pipeline/training_splits/runners_split_[0][8][0-9].pkl.gz"
+input_glob: "../data/samples/runners_split_[0][8][0-9].pkl.gz"
 # Or use a simpler pattern to load all files:
-# input_glob: "../pipeline/training_splits/*.pkl.gz"
+# input_glob: "../data/samples/*.pkl.gz"
 
 # Number of examples to evaluate
 num_examples: 100000

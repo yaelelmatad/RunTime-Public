@@ -225,11 +225,26 @@ class RunTimeDataset(Dataset):
         
         # Token layout (per race) is a fixed stride in the grammar.
         # Default: 11 tokens per race, and we predict the final token (pace) so input length is (11*n - 1).
+        #
+        # Original (legacy) block order placed time tokens *before* pace:
+        #   <features_i> <delta_next_i> <delta_final_i> <pace_i>
+        # e.g.: [features R1] [weeks_to_R2] [weeks_to_final] [pace R1] [features R2] ...
+        #        [features R_final] [delta_0] [delta_0] [pace_final]
+        #
+        # The swapped (paper) architecture moves pace *before* the time tokens so that
+        # the model sees pace for race i before the cadence gap to race i+1, improving
+        # causal coherence:
+        #   <features_i> <pace_i> <delta_next_i> <delta_final_i>
+        # The final block's trailing [delta_0, delta_0] become redundant and are dropped
+        # (drop_final_time_tokens=2), so the sequence ends on the target pace.
+        #
+        # swap_pace_time_tokens defaults to True; set to False only to reproduce
+        # the legacy ordering.
         data_cfg = config.get('data', {}) if isinstance(config.get('data'), dict) else {}
         self.block_stride = int(data_cfg.get('block_stride', 11))
-        self.swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', False))
-        # If enabled, we drop the last K time tokens from the final block (e.g., week_delta_0/week_delta_0),
-        # so the sequence ends with the pace token. That reduces input length by K: (11*n - 1 - K).
+        self.swap_pace_time = bool(data_cfg.get('swap_pace_time_tokens', True))
+        # Drop the last K time tokens from the final block (the redundant delta_0 sentinels),
+        # so the sequence ends with the pace token. Reduces input length by K: (11*n - 1 - K).
         self.drop_final_time_tokens = int(data_cfg.get('drop_final_time_tokens', 2 if self.swap_pace_time else 0))
 
         if 'max_races_to_consider' in config['model']:
@@ -413,7 +428,7 @@ class RunTimeTransformer(nn.Module):
         # If using max_races_to_consider, reflect the true input length given token order.
         data_cfg = config.get('data', {}) if isinstance(config.get('data'), dict) else {}
         stride = int(data_cfg.get('block_stride', 11))
-        swap = bool(data_cfg.get('swap_pace_time_tokens', False))
+        swap = bool(data_cfg.get('swap_pace_time_tokens', True))
         drop_k = int(data_cfg.get('drop_final_time_tokens', 2 if swap else 0))
         max_len = int(m.get('max_seq_length', 512))
         if 'max_races_to_consider' in m:
