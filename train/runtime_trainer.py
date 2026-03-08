@@ -261,7 +261,7 @@ class RunTimeDataset(Dataset):
         
         if self.use_adaptive_sigma:
             # Adaptive sigma mode: sigma = sqrt(sigma_floor^2 + (k * w)^2) (where w is target bin width)
-            self.sigma_floor = float(training_cfg.get('adaptive_sigma_floor', 3.5))
+            self.sigma_floor = float(training_cfg.get('adaptive_sigma_floor', 2.7))
             self.k = float(training_cfg.get('adaptive_sigma_k', 1.5))
             self.sigma = None  # Not used in adaptive mode
             
