@@ -1,5 +1,5 @@
 This repo uses agent-friendly automation with strong expectations about where notebooks, configs,
-and artifacts live. When interacting with `RunTime-Public` (or the sibling `RunTime-Full`), follow
+and artifacts live. When interacting with `RunTime-Public` (or the private sibling `RunTime-Full`), follow
 these conventions so automated agents behave predictably.
 
 ## Core Principles
@@ -20,8 +20,8 @@ these conventions so automated agents behave predictably.
 - Baseline/XGBoost work lives in `train/benchmark_baselines.py` and `train/run_xgboost_tuning.sh`.
 - The evaluation scripts (`train/evaluate_models.py` and `_parallel.py`) depend on `train/runtime_inference.py`.
   Run notebooks from the repo root so those import paths resolve cleanly.
-- For cloud setup: prefer `train/run-scripts/setup_cloud.sh` / `setup_lambda.sh`; `generate_white_paper_pdf.sh`,
-  `Paper_Template.tex`, and the slides were removed intentionally—do not restore them.
+- For cloud setup: use `train/setup_cloud.sh` (venv-based) or `train/run-scripts/setup_lambda.sh` for Lambda-specific provisioning.
+  `generate_white_paper_pdf.sh`, `Paper_Template.tex`, and the slides were removed intentionally—do not restore them.
 
 ## Git Hygiene
 - You’ve already cleaned the repo: `Technical_Details.*`, `tabtransformer.pdf`, the old slides, `run_runtime_sweep.sh`, and the white‑paper generator are gone and shouldn’t be re-added.
