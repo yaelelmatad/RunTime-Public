@@ -27,6 +27,10 @@ __pycache__/
 *.pyc
 .venv/
 
+# arxiv submission artifacts
+arxiv_submission*/
+arxiv_submission.tar.gz
+
 # OS
 .DS_Store
 *.bbl
