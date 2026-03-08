@@ -149,7 +149,7 @@ Even though the accuracy hit remains modest in aggregate, the bottom panel of Fi
 \textbf{Temporal generalization.} Figure~\ref{fig:mae_ablation} (bottom) plots MAE vs.\ the week gap between a runner’s penultimate and target race. All variants worsen as the gap grows---closing the gap between the Transformers and XGBoost---suggesting a convergence toward baseline performance at long gaps. The middle panel also shows that the relative gap between the shuffled and full models widens as history length increases, confirming that preserving chronological order helps the Transformer learn progression patterns that generalize better than tree-based methods.
 \begin{figure}[t!]
 \centering
-\includegraphics[width=1.0\linewidth,height=0.7\textheight,keepaspectratio]{../figures/mae_ablation_plot.png}
+\includegraphics[width=1.0\linewidth,height=0.7\textheight,keepaspectratio]{figures/mae_ablation_plot.png}
 \caption{Top: MAE vs. history length. Middle: normalized MAE showing the ablation gap relative to the full model. Bottom: MAE vs. week gap between the penultimate and target race, highlighting temporal staleness.}
 \label{fig:mae_ablation}
 \end{figure}
@@ -158,21 +158,21 @@ Even though the accuracy hit remains modest in aggregate, the bottom panel of Fi
 Figure~\ref{fig:qq-curve-new} shows the updated Q–Q plot staying near uniform (KS=0.0045 from the best-KS adaptive-\(\sigma\) checkpoint), Figure~\ref{fig:quantile-calibration-new} highlights where the predicted probability concentrates its mass, and Figure~\ref{fig:decile-calibration} traces eight decile-specific curves that reveal residual drift for slower runners. These diagnostics demonstrate overall calibration while pointing to the performance-dependent deviations that adaptive smoothing targets, and all three plots were generated using roughly 250,000 evaluation points across 10 bins per decile to keep the comparisons consistent. Importantly this calibration arrives without any post-training temperature scaling—the adaptive \(\sigma\) schedule effectively plays the role of an in-training temperature, and its dependence on bin width and statistics could also motivate a post-training “adaptive temperature” refinement that explicitly compensates for the granular, semi-quantized vocabulary.
 \begin{figure}[t!]
 \centering
-\includegraphics[width=\linewidth]{../figures/QQ-curves-new.png}
+\includegraphics[width=\linewidth]{figures/QQ-curves-new.png}
 \caption{Q–Q plot showing distributions across various percentiles from \(\sigma=0\) (cross entropy) to \(\sigma=35\) (wide Gaussian).}
 \label{fig:qq-curve-new}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\linewidth]{../figures/quantiles_calibration.png}
+\includegraphics[width=\linewidth]{figures/quantiles_calibration.png}
 \caption{Quantile calibration emphasizing where predicted densities concentrate. Note that small \(\sigma\) values concentrate predictions at the extremes, suggesting model overconfidence, whereas large \(\sigma\) values appear underconfident, with larger probability mass in the middle.}
 \label{fig:quantile-calibration-new}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{../figures/calib-8.png}
+\includegraphics[width=\linewidth]{figures/calib-8.png}
 \caption{Calibration plots highlighting how different smoothing choices affect residual drift across percentiles.}
 \label{fig:decile-calibration}
 \end{figure}
@@ -230,21 +230,21 @@ and \(\sigma_i = \sqrt{\sigma_{\text{floor}}^2 + (k \cdot \Delta_i)^2}\) uses th
 Figure~\ref{fig:runner-ye} through Figure~\ref{fig:runner-rw} show three representative runner histories (short, median, and long careers). Each block overlays the observed pace sequence with the Gaussian-smoothed prediction envelopes, illustrating the full predicted distribution (PDF) across the vocabulary and how the density sharpens for consistent performers while broadening for more erratic trajectories.
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\linewidth]{../figures/YE.png}
+\includegraphics[width=0.8\linewidth]{figures/YE.png}
 \caption{YE (short-career) runner trajectory with predicted PDFs illustrating tight uncertainty as the history grows.}
 \label{fig:runner-ye}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.9\linewidth]{../figures/RY.png}
+\includegraphics[width=0.9\linewidth]{figures/RY.png}
 \caption{RY (median-career) runner trajectory showing moderate calibration and widening distributions for longer distances.}
 \label{fig:runner-ry}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.9\linewidth]{../figures/RW.png}
+\includegraphics[width=0.9\linewidth]{figures/RW.png}
 \caption{RW (long-career) runner trajectory that exhibits sustained variability and broad PDFs even late in the history.}
 \label{fig:runner-rw}
 \end{figure}
@@ -255,9 +255,9 @@ Figure~\ref{fig:runner-ye} through Figure~\ref{fig:runner-rw} show three represe
 Activation statistics and attention patterns confirm that cadence tokens dominate when entropy is high, while the pace bins sharpen when variance is low. Figure~\ref{fig:activation-visualization} visualizes the same batch from three views (attention, per-layer contributions, and distributional histogram), showing how the model routes focus toward time deltas during uncertain predictions.
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_attn_L5_H0_20260121_070548.png}\\[0.3em]
-\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_bylayer_20260121_070547.png}\\[0.3em]
-\includegraphics[width=0.95\linewidth]{../figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_dist_20260121_070547.png}
+\includegraphics[width=0.95\linewidth]{figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_attn_L5_H0_20260121_070548.png}\\[0.3em]
+\includegraphics[width=0.95\linewidth]{figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_bylayer_20260121_070547.png}\\[0.3em]
+\includegraphics[width=0.95\linewidth]{figures/activation_plots/seed42_batch1_WIDE_top_15__i4_Emma_h10_w80306_dist_20260121_070547.png}
 \caption{Activation and attention diagnostics for a high-uncertainty prediction. Top: attention weights for the final transformer block. Middle: per-layer contribution magnitudes. Bottom: pace distribution histogram showing the predicted softmax.}
 \label{fig:activation-visualization}
 \end{figure}

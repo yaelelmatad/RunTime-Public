@@ -1,0 +1,114 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{vaswani2017attention}
+\citation{chen2016xgboost}
+\citation{chen2016xgboost}
+\citation{rabanser2020discretization,ansari2024chronos,ansari2025chronos2}
+\citation{gorishniy2021revisiting}
+\citation{huang2020tabtransformer}
+\citation{arik2021tabnet}
+\citation{grinsztajn2022tree,shwartz2022tabular}
+\citation{diaz2019sord}
+\citation{guo2017calibration}
+\citation{kuleshov2018accurate}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Tabular Transformers}{1}{subsection.2.1}\protected@file@percent }
+\citation{du2016recurrent}
+\citation{shchur2020intensity}
+\citation{zuo2020transformer}
+\citation{ansari2024chronos}
+\citation{ansari2025chronos2}
+\citation{rabanser2020discretization}
+\citation{nyrr2024}
+\citation{visualcrossing2024}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Ordinal Regression and Calibration}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Event Trajectories and Temporal Point Processes}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Discretization for Forecasting}{2}{subsection.2.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Method}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Problem Setup}{2}{subsection.3.1}\protected@file@percent }
+\citation{rabanser2020discretization}
+\citation{vaswani2017attention}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Discretization Strategy}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Gaussian-integrated Soft Targets}{3}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Adaptive Smoothing}{3}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Architecture}{3}{subsection.3.5}\protected@file@percent }
+\citation{loshchilov2019decoupled}
+\citation{riegel1981predicting}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experiments}{4}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Setup}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Results}{4}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Training Configuration}{4}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Main results}}{4}{table.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:main-results}{{1}{4}{Main results}{table.caption.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Training configuration for the fixed \(\sigma =3\) sweep. RunTime is a decoder-style causal Transformer.}}{4}{table.caption.2}\protected@file@percent }
+\newlabel{tab:train-config}{{2}{4}{Training configuration for the fixed \(\sigma =3\) sweep. RunTime is a decoder-style causal Transformer}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Ablation configurations}{4}{table.caption.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Top: MAE vs. history length. Middle: normalized MAE showing the ablation gap relative to the full model. Bottom: MAE vs. week gap between the penultimate and target race, highlighting temporal staleness.}}{5}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:mae_ablation}{{1}{5}{Top: MAE vs. history length. Middle: normalized MAE showing the ablation gap relative to the full model. Bottom: MAE vs. week gap between the penultimate and target race, highlighting temporal staleness}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Riegel formula baseline}{5}{table.caption.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Ablations}{5}{subsection.4.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Ablation MAE statistics (\(\sigma =3\)) and wall-clock costs to best MAE.}}{5}{table.caption.3}\protected@file@percent }
+\newlabel{tab:ablations}{{3}{5}{Ablation MAE statistics (\(\sigma =3\)) and wall-clock costs to best MAE}{table.caption.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Q–Q plot showing distributions across various percentiles from \(\sigma =0\) (cross entropy) to \(\sigma =35\) (wide Gaussian).}}{6}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:qq-curve-new}{{2}{6}{Q–Q plot showing distributions across various percentiles from \(\sigma =0\) (cross entropy) to \(\sigma =35\) (wide Gaussian)}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Calibration Analysis}{6}{subsection.4.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Calibration plots highlighting how different smoothing choices affect residual drift across percentiles.}}{7}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:decile-calibration}{{4}{7}{Calibration plots highlighting how different smoothing choices affect residual drift across percentiles}{figure.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Quantile calibration emphasizing where predicted densities concentrate. Note that small \(\sigma \) values concentrate predictions at the extremes, suggesting model overconfidence, whereas large \(\sigma \) values appear underconfident, with larger probability mass in the middle.}}{7}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:quantile-calibration-new}{{3}{7}{Quantile calibration emphasizing where predicted densities concentrate. Note that small \(\sigma \) values concentrate predictions at the extremes, suggesting model overconfidence, whereas large \(\sigma \) values appear underconfident, with larger probability mass in the middle}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.6}Calibration Sweep Leaderboard}{8}{subsection.4.6}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Calibration sweep leaderboard (seconds). Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally.}}{8}{table.caption.8}\protected@file@percent }
+\newlabel{tab:calib-leaderboard}{{4}{8}{Calibration sweep leaderboard (seconds). Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Analysis}{8}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Discussion and Limitations}{8}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{9}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Learnable Soft Tokenization}{9}{subsection.7.1}\protected@file@percent }
+\citation{nyrr2024}
+\citation{visualcrossing2024}
+\citation{cox1972regression,katzman2018deepsurv,lee2018deephit}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Additional Analyses}{10}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Runner Trajectories and Calibration Examples}{10}{subsection.A.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Runner selection note}{10}{figure.caption.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}Activation and Attention Diagnostics}{10}{subsection.A.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}Data Provenance and Survival-Analysis Context}{10}{subsection.A.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}Grammar Efficiency Considerations}{10}{subsection.A.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.5}Future Work and Applications}{10}{subsection.A.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.6}Huber-loss exploration}{11}{subsection.A.6}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces YE (short-career) runner trajectory with predicted PDFs illustrating tight uncertainty as the history grows.}}{12}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:runner-ye}{{5}{12}{YE (short-career) runner trajectory with predicted PDFs illustrating tight uncertainty as the history grows}{figure.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces RY (median-career) runner trajectory showing moderate calibration and widening distributions for longer distances.}}{13}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:runner-ry}{{6}{13}{RY (median-career) runner trajectory showing moderate calibration and widening distributions for longer distances}{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces RW (long-career) runner trajectory that exhibits sustained variability and broad PDFs even late in the history.}}{14}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:runner-rw}{{7}{14}{RW (long-career) runner trajectory that exhibits sustained variability and broad PDFs even late in the history}{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Activation and attention diagnostics for a high-uncertainty prediction. Top: attention weights for the final transformer block. Middle: per-layer contribution magnitudes. Bottom: pace distribution histogram showing the predicted softmax.}}{15}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:activation-visualization}{{8}{15}{Activation and attention diagnostics for a high-uncertainty prediction. Top: attention weights for the final transformer block. Middle: per-layer contribution magnitudes. Bottom: pace distribution histogram showing the predicted softmax}{figure.caption.12}{}}
+\bibstyle{unsrtnat}
+\bibdata{references}
+\bibcite{vaswani2017attention}{{1}{2017}{{Vaswani et~al.}}{{Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, and Polosukhin}}}
+\bibcite{chen2016xgboost}{{2}{2016}{{Chen and Guestrin}}{{}}}
+\bibcite{rabanser2020discretization}{{3}{2020}{{Rabanser et~al.}}{{Rabanser, Januschowski, Flunkert, Salinas, and Gasthaus}}}
+\bibcite{ansari2024chronos}{{4}{2024}{{Ansari et~al.}}{{}}}
+\bibcite{ansari2025chronos2}{{5}{2025}{{Ansari et~al.}}{{}}}
+\bibcite{gorishniy2021revisiting}{{6}{2021}{{Gorishniy et~al.}}{{Gorishniy, Rubachev, Khrulkov, and Babenko}}}
+\bibcite{huang2020tabtransformer}{{7}{2020}{{Huang et~al.}}{{Huang, Khetan, Cvitkovic, and Karnin}}}
+\bibcite{arik2021tabnet}{{8}{2021}{{Arik and Pfister}}{{}}}
+\bibcite{grinsztajn2022tree}{{9}{2022}{{Grinsztajn et~al.}}{{Grinsztajn, Oyallon, and Varoquaux}}}
+\bibcite{shwartz2022tabular}{{10}{2022}{{Shwartz-Ziv and Armon}}{{}}}
+\bibcite{diaz2019sord}{{11}{2019}{{Diaz and Marathe}}{{}}}
+\bibcite{guo2017calibration}{{12}{2017}{{Guo et~al.}}{{Guo, Pleiss, Sun, and Weinberger}}}
+\bibcite{kuleshov2018accurate}{{13}{2018}{{Kuleshov et~al.}}{{Kuleshov, Fenner, and Ermon}}}
+\bibcite{du2016recurrent}{{14}{2016}{{Du et~al.}}{{}}}
+\bibcite{shchur2020intensity}{{15}{2020}{{Shchur et~al.}}{{Shchur, Bilo{\v s}, and G{\"u}nnemann}}}
+\bibcite{zuo2020transformer}{{16}{2020}{{Zuo et~al.}}{{}}}
+\bibcite{nyrr2024}{{17}{2024}{{Runners}}{{}}}
+\bibcite{visualcrossing2024}{{18}{2024}{{Crossing}}{{}}}
+\bibcite{loshchilov2019decoupled}{{19}{2019}{{Loshchilov and Hutter}}{{}}}
+\bibcite{riegel1981predicting}{{20}{1981}{{Riegel}}{{}}}
+\bibcite{cox1972regression}{{21}{1972}{{Cox}}{{}}}
+\bibcite{katzman2018deepsurv}{{22}{2018}{{Katzman et~al.}}{{}}}
+\bibcite{lee2018deephit}{{23}{2018}{{Lee et~al.}}{{}}}
+\gdef \@abspage@last{17}
