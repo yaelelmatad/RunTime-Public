@@ -90,9 +90,8 @@ Practical note: to prevent abuse (e.g., automated scraping / bulk pulling of the
 
 If you’re interested in reproducing the full dataset or accessing raw data, please reach out to the authors/maintainers and we can share additional details as appropriate.
 
-Included notebooks:
+Pipeline notebooks (Stage 01 is intentionally excluded from the public repo; see note above):
 
-- `pipeline/01_Data_Acquisition.ipynb`
 - `pipeline/02_Weather_Extraction.ipynb`
 - `pipeline/03_Runner_Career_Grouping.ipynb`
 - `pipeline/04_Weather_Grammar_Creation.ipynb`
@@ -186,7 +185,7 @@ python train/load_raw_predictions.py path/to/model_name_raw_predictions.pickle
 
 When you open the notebooks in `evaluate/`, launch Jupyter from the repo root so that `train/` is already on `sys.path` (they append the parent directory as a fallback). This makes `from runtime_inference import ...` work consistently across scripts, notebooks, and CLI tools.
 
-### Running on Lambda (GPU quickstart)
+### Running on a cloud GPU (Lambda, etc.)
 
 On a fresh Ubuntu GPU machine:
 
@@ -194,25 +193,18 @@ On a fresh Ubuntu GPU machine:
 git clone git@github.com:yaelelmatad/RunTime-Public.git
 cd RunTime-Public
 
-# Create the venv + install deps
+# Create the venv + install deps (detects CUDA automatically)
 bash train/setup_cloud.sh
-
-# The setup script installs cuda-enabled PyTorch and other packages into ~/.local; add it to PATH:
-export PATH="$HOME/.local/bin:$PATH"
+source .venv/bin/activate
 
 # Optional: set WANDB before training
 export WANDB_API_KEY="..."
-
-# Verify the machine via the Lambda helper (checks CUDA + data shards):
-bash train/run-scripts/setup_lambda.sh
 
 # Run baselines / trainer / evaluation as above:
 bash train/run_xgboost_tuning.sh
 CONFIG=train/runtime_trainer_adaptive_sigma.yaml bash train/run_runtime_train.sh
 python train/evaluate_models.py --config train/evaluation_config_cluster.yaml
 ```
-
-`train/run-scripts/setup_lambda.sh` already installs system packages (python3-dev, pip) and user-level dependencies like torch, wandb, scipy, and optuna, so rerunning it after reboot ensures the Lambda env stays healthy.
 
 ## Dataset Statistics
 

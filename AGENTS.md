@@ -20,8 +20,8 @@ these conventions so automated agents behave predictably.
 - Baseline/XGBoost work lives in `train/benchmark_baselines.py` and `train/run_xgboost_tuning.sh`.
 - The evaluation scripts (`train/evaluate_models.py` and `_parallel.py`) depend on `train/runtime_inference.py`.
   Run notebooks from the repo root so those import paths resolve cleanly.
-- For cloud setup: use `train/setup_cloud.sh` (venv-based) or `train/run-scripts/setup_lambda.sh` for Lambda-specific provisioning.
-  `generate_white_paper_pdf.sh`, `Paper_Template.tex`, and the slides were removed intentionally—do not restore them.
+- For cloud setup: use `train/setup_cloud.sh` (venv-based).
+  `generate_white_paper_pdf.sh`, `Paper_Template.tex`, Lambda-specific run-scripts, and the slides were removed intentionally—do not restore them.
 
 ## Git Hygiene
 - You’ve already cleaned the repo: `Technical_Details.*`, `tabtransformer.pdf`, the old slides, `run_runtime_sweep.sh`, and the white‑paper generator are gone and shouldn’t be re-added.
