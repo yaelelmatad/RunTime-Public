@@ -60,7 +60,7 @@ These numbers mirror Table 1 in `paper/RunTime_Tabular_Main.pdf`, reporting the 
 - `train/runtime_trainer.py`: Main RunTime Transformer trainer with adaptive sigma (YAML-configured; supports CUDA / Apple MPS / CPU).
 - `train/runtime_trainer_ablation.py`: Time-token ablation trainer — drops week-delta tokens and keeps only the final age marker.
 - `train/runtime_trainer_ablation_shuffled.py`: Shuffled ablation trainer — same as the time-token ablation but feeds stride blocks in randomized order.
-- `train/Benchmark_Baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost with optional hyperparameter tuning).
+- `train/benchmark_baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost with optional hyperparameter tuning).
 - `train/evaluate_models.py`: Load saved checkpoints, replay inference, and compute MAE / calibration metrics.
 - `train/evaluate_models_parallel.py`: Parallel-GPU version of `evaluate_models.py`.
 - `train/runtime_inference.py`: Shared inference library used by evaluation scripts and notebooks (`RuntimeModelInference`, split loaders, calibration utilities).
