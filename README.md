@@ -104,6 +104,10 @@ Included notebooks:
 
 Note: the *conceptual* order is “hydration/tokenization → final dataset sharding”; see `pipeline/Workflow_Overview.md` for the intended flow.
 
+### Evaluation notebooks (`evaluate/`)
+
+- `evaluate/Examine_Distribution_Quantile_Predictions.ipynb`: Load a trained checkpoint, replay inference on held-out splits, and inspect the predicted probability distributions — including quantile calibration (Q-Q), per-bin mass, and decile-level diagnostics. Launch Jupyter from the repo root so `train/` is on `sys.path`.
+
 ### Figures + paper artifacts
 
 - `figures/`: Exported plots referenced in the paper / notebooks.
