@@ -80,7 +80,7 @@ Each event block follows a strict grammar: First the environmental, race specifi
 \subsection{Setup}
 Entity-disjoint splits ensure zero leakage. The test set comprises 60K runners (500K predictions). Evaluation includes MAE, RMSE, and the Kolmogorov-Smirnov statistic for calibration.
 \subsection{Results}
-Table~\ref{tab:main-results} summarizes the median MAE gap between the full model and the baselines.
+Table~\ref{tab:main-results} compares the full RunTime model against three baselines. RunTime achieves a median MAE of 35.94\,s, a 10.8\% improvement over tuned XGBoost (40.31\,s) and roughly 30\% better than the physics-based Riegel formula (49.74\,s). The point-prediction baselines (XGBoost, Naive mean, Riegel) produce identical mean, median, and mode MAE because they emit a single value per example; RunTime's distributional output, by contrast, yields distinct summary statistics---the mode MAE (38.50\,s) is higher than the median (35.94\,s), indicating a slight right skew in the predicted distributions where the most-likely bin is occasionally offset from the probability-weighted center. The RMSE gap is narrower (71.83\,s vs.\ 73.15\,s for XGBoost), which is expected: RMSE penalizes large errors more heavily, and both models struggle on the same long-gap, high-variance examples.
 \subsection{Training Configuration}
 Table~\ref{tab:train-config} collects the core training settings so the reported convergence behavior can be reproduced at scale.
 \begin{table}[h]
@@ -177,7 +177,12 @@ Figure~\ref{fig:qq-curve-new} shows the updated Q–Q plot staying near uniform 
 \label{fig:decile-calibration}
 \end{figure}
 \FloatBarrier
-\paragraph{Model leaderboard summary} Table~\ref{tab:calib-leaderboard} reports the validation MAE/RMSE statistics collected for eight variants of the full model used in the calibration sweep. These runs were configured for fast iteration (larger batch sizes, adjusted learning rates, shorter sweeps) and should not be compared against the more converged \(\sigma=3\) benchmark in Table~\ref{tab:main-results}; rather, they exist to compare relative behavior under different smoothing/KS choices. Because the median MAE in Table~\ref{tab:main-results} comes from the extensively trained \(\sigma=3\) checkpoint (35.94s), the entries in this sweep deliberately report different medians, and the "best KS" checkpoint can therefore have a higher MAE even though its KS is lowest. Rows marked "Best KS" refer to the checkpoint selected for the smallest KS, i.e., the calibration-optimized partner for that loss variant rather than the run with the minimum median MAE. All other values of \(\sigma\) had optimized KS values between the adaptive \(\sigma\) sweep and the cross entropy (\(\sigma = 0\)) sweep without improvement in MAE.
+\subsection{Calibration Sweep Leaderboard}
+Table~\ref{tab:calib-leaderboard} reports the validation MAE/RMSE statistics collected for eight variants of the full model used in the calibration sweep.
+
+\textbf{Important:} these runs used a different training regime than the main result in Table~\ref{tab:main-results}---larger batch sizes, adjusted learning rates, and shorter training schedules designed for fast comparison rather than full convergence. The MAEs in Table~\ref{tab:calib-leaderboard} are therefore systematically higher than the 35.94\,s reported in Table~\ref{tab:main-results} and should only be compared against each other, not against the converged benchmark. The purpose of this sweep is to isolate the effect of the smoothing parameter \(\sigma\) on calibration (KS) while holding the training budget constant.
+
+Rows marked ``Best KS'' refer to the checkpoint selected for the smallest KS statistic, i.e., the calibration-optimized partner for that loss variant rather than the run with the minimum median MAE. The adaptive \(\sigma\) best-KS checkpoint achieves KS\(=\)0.0045 at the cost of slightly higher MAE (37.34\,s vs.\ 36.74\,s for the MAE-optimized adaptive \(\sigma\) checkpoint), confirming that calibration and point accuracy are distinct objectives. All other values of \(\sigma\) had optimized KS values between the adaptive \(\sigma\) sweep and the cross entropy (\(\sigma = 0\)) sweep without improvement in MAE.
 \begin{table*}[h]
 \centering
 \caption{Calibration sweep leaderboard (seconds). Lower is better; values were collected on short, cost-aware sweeps and should only be compared internally.}
@@ -244,7 +249,7 @@ Figure~\ref{fig:runner-ye} through Figure~\ref{fig:runner-rw} show three represe
 \label{fig:runner-rw}
 \end{figure}
 
-\paragraph{Runner selection note} These three runners were selected not because they are archetypal but because they are known to the authors, which lets us verify that outliers (e.g., YE’s slower-than-usual race \#7, run with a teenage sibling, or race \#19, run with a group of friends) are artifacts of human decision-making rather than modeling failure. The point is to show that even when the model is calibrated, humans still choose to vary their strategy, so distributional forecasts are the right interface for uncertainty-aware guidance.
+\paragraph{Runner selection note} These three runners were selected because ground-truth context is available for their outlier races, which lets us verify that prediction errors reflect human decision-making rather than modeling failure. For example, Runner~A's slower-than-usual race~\#7 and race~\#19 correspond to known non-competitive efforts (pacing a companion). The point is to show that even when the model is well-calibrated, humans still choose to vary their strategy, so distributional forecasts are the right interface for uncertainty-aware guidance.
 
 \subsection{Activation and Attention Diagnostics}
 Activation statistics and attention patterns confirm that cadence tokens dominate when entropy is high, while the pace bins sharpen when variance is low. Figure~\ref{fig:activation-visualization} visualizes the same batch from three views (attention, per-layer contributions, and distributional histogram), showing how the model routes focus toward time deltas during uncertain predictions.
