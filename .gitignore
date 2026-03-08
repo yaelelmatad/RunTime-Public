@@ -29,6 +29,7 @@ __pycache__/
 
 # OS
 .DS_Store
+*.bbl
 
 # keep the published slide deck
 !slides/RunTime_Slides.pdf
