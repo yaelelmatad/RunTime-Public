@@ -16,7 +16,7 @@
 \begin{center}
  {\LARGE \bf Explicit Discretization: How Transformers Beat XGBoost on Calibrated Tabular Forecasting}\\[0.5em]
   {\large Yael S. Elmatad}\\
-  {\small Open Athena \& \href{mailto:Yael.elmatad@gmail.com}{Yael.elmatad@gmail.com}}
+  {\small \href{mailto:yael.elmatad@gmail.com}{yael.elmatad@gmail.com}}
 \end{center}
 \vspace{-1em}
 \section*{Abstract}
@@ -70,7 +70,7 @@ Fixed \(\sigma\) values work well for narrow bins (many middle bins are only 1â€
 \[
 \sigma_i = \sqrt{ \sigma_{\text{floor}}^2 + (k \cdot w_i)^2 },
 \]
-where \(w_i = b_i^{\text{end}} - b_i^{\text{start}}\) is the width of bin \(i\) which is the bin in which the target value lands, \(\sigma_{\text{floor}}\) enforces a minimum smoothing width, and \(k\) controls how aggressively the bin width influences the smoothing. This keeps narrow bins sharp while allowing broad bins to receive proportionally more mass, and the parameter pair \((\sigma_{\text{floor}}, k)\) is tuned on validation data and cached per bin via the training config.
+where \(w_i = b_i^{\text{end}} - b_i^{\text{start}}\) is the width of bin \(i\) which is the bin in which the target value lands, \(\sigma_{\text{floor}}\) enforces a minimum smoothing width, and \(k\) controls how aggressively the bin width influences the smoothing. This keeps narrow bins sharp while allowing broad bins to receive proportionally more mass, and the parameter pair \((\sigma_{\text{floor}}, k)\) is tuned on validation data and cached per bin via the training config. The results reported in this paper use \(\sigma_{\text{floor}} = 2.7\) and \(k = 1.5\).
 \subsection{Architecture}
 A causal Transformer~\cite{vaswani2017attention} (6 layers, 8 heads, 512-dimensional embeddings) processes the token stream. Pace tokens sit before the cadence tokens, and we mask attention to enforce causality. The decoder-style transformer ingests the fixed 11-token stride grammar so every event block is handled like auto-regressive language modeling, producing logits over pace bins that are trained with the Gaussian-smoothed cross-entropy objective described earlier (standard cross-entropy only appears in a specific ablation).
 
