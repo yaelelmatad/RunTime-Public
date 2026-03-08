@@ -1,4 +1,4 @@
-[![Work in progress](https://img.shields.io/badge/status-work_in_progress-orange)](#)
+[![Stable](https://img.shields.io/badge/status-stable-green)](#)
 # Runtime (RunTime): Distributional Transformers for Irregular Event Sequences
 [![DOI](https://zenodo.org/badge/1139424380.svg)](https://doi.org/10.5281/zenodo.18370743)
 
@@ -35,9 +35,9 @@ This lets RunTime model regime-specific behavior like trees while keeping the Tr
 
 If you want the full writeup (with figures): see `paper/RunTime_Tabular_Main.tex` and the rendered PDF at `paper/RunTime_Tabular_Main.pdf`.
 
-## Status: Work in Progress
+## Status
 
-Code in this repo is being actively developed.  It may not run out of the box but it is being shown here for illustrative purposes.  This will be addressed when the work is in a more final state, but the patterns remain largely unchanged.
+Code in this repo runs end-to-end on the included sample shards (tested on CUDA, Apple MPS, and CPU). The architecture, training loop, and evaluation pipeline are stable; incremental improvements may still land.
 
 ## Current results (final; hyperparameter tuning completed)
 
@@ -57,12 +57,25 @@ These numbers mirror Table 1 in `paper/RunTime_Tabular_Main.pdf`, reporting the 
 
 ### Core training + evaluation (`train/`)
 
-- `train/runtime_trainer.py`: Train the RunTime Transformer from a YAML config (supports CUDA / Apple MPS / CPU).
-- `train/runtime_trainer_config.yaml`: Default training config for this standalone repo (points at the included sample shards).
-- `train/benchmark_baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost).
-- `train/Inspect_Model_Outputs.ipynb`: Notebook used to compute aggregate metrics / visualizations from saved predictions.
-- `train/Inspect_Model_Activations.ipynb`: Attention/activation inspection + figure export helpers.
-- `train/setup_cloud.sh`: Convenience setup script intended for fresh GPU machines.
+- `train/runtime_trainer.py`: Main RunTime Transformer trainer with adaptive sigma (YAML-configured; supports CUDA / Apple MPS / CPU).
+- `train/runtime_trainer_ablation.py`: Time-token ablation trainer — drops week-delta tokens and keeps only the final age marker.
+- `train/runtime_trainer_ablation_shuffled.py`: Shuffled ablation trainer — same as the time-token ablation but feeds stride blocks in randomized order.
+- `train/Benchmark_Baselines.py`: Baselines on the same serialized dataset shards (naive mean, last-pace, and XGBoost with optional hyperparameter tuning).
+- `train/evaluate_models.py`: Load saved checkpoints, replay inference, and compute MAE / calibration metrics.
+- `train/evaluate_models_parallel.py`: Parallel-GPU version of `evaluate_models.py`.
+- `train/runtime_inference.py`: Shared inference library used by evaluation scripts and notebooks (`RuntimeModelInference`, split loaders, calibration utilities).
+- `train/load_raw_predictions.py`: Helper to load and inspect saved raw prediction pickle files.
+- `train/run_runtime_train.sh`: Convenience shell wrapper for launching training.
+- `train/run-scripts/`: Additional helper scripts for cloud setup, XGBoost tuning, and checkpoint management.
+
+### Configs (`train/*.yaml`)
+
+- `train/runtime_trainer_adaptive_sigma.yaml`: Main model config — adaptive sigma smoothing (paper architecture).
+- `train/runtime_trainer_config.yaml`: Alternative config using fixed sigma smoothing.
+- `train/runtime_trainer_time_token_ablation.yaml`: Time-token ablation config.
+- `train/runtime_trainer_shuffled_ablation.yaml`: Shuffled ablation config.
+- `train/evaluation_config_local.yaml`: Example evaluation config for local runs.
+- `train/evaluation_config_cluster.yaml`: Example evaluation config for GPU cluster runs.
 
 ### Data artifacts (`data/`)
 
@@ -141,37 +154,26 @@ python train/runtime_trainer_ablation.py --config train/runtime_trainer_time_tok
 python train/runtime_trainer_ablation_shuffled.py --config train/runtime_trainer_shuffled_ablation.yaml
 ```
 
-Checkpoints are saved under `train/<save_dir>/<run_name>/` as configured in each YAML (defaults to `checkpoints_clean_prod/Production_Scale_v2_HighCap/` for the adaptive run). If any config enables `use_wandb: true`, set `WANDB_API_KEY` before running so the logs reach WandB (otherwise the key can stay local to the YAML).
+Checkpoints are saved under `<save_dir>/<run_name>/` as configured in each YAML (defaults to `checkpoints_clean_prod/runtime-adaptive-sigma/`). If any config enables `use_wandb: true`, set `WANDB_API_KEY` before running so the logs reach WandB.
 
 ### 4) Evaluate predictions
 
 Use `train/evaluate_models.py` (or the parallel-aware `train/evaluate_models_parallel.py`) to load saved checkpoints, replay inference, and compute MAE / calibration metrics. Both scripts (and the `evaluate/` notebooks) rely on the shared inference library `train/runtime_inference.py`, which exposes the `RuntimeModelInference` helper, split loaders, and calibration utilities.
 
 ```bash
-# use a config file that lists checkpoints / splits
-python train/evaluate_models.py --config evaluate/eval_config.yaml
-
-# or run with on-the-fly arguments
-python train/evaluate_models.py --input-glob "./data/samples/*.pkl.gz" \
-    --models adaptive:train/checkpoints_clean_prod/Production_Scale_v2_HighCap_Corrected/checkpoint.pt \
-    --num-examples 5000 \
-    --output evaluate/results_adaptive.pickle
+# use a config file that lists checkpoints and data splits
+python train/evaluate_models.py --config train/evaluation_config_local.yaml
 ```
 
-When you open the notebooks in `evaluate/`, launch Jupyter from the repo root so that `train/` is already on `sys.path` (they append `Path(__file__).resolve().parents[1]` to `sys.path` as a fallback). This makes `from runtime_inference import ...` work consistently across scripts, notebooks, and CLI tools.
+See `train/evaluation_config_local.yaml` and `train/evaluation_config_cluster.yaml` for example configs that specify model checkpoints, data glob patterns, and evaluation parameters.
+
+To inspect saved raw predictions after evaluation:
 
 ```bash
-# use a config file that lists checkpoints / splits
-python train/evaluate_models.py --config evaluate/eval_config.yaml
-
-# or run with on-the-fly arguments
-python train/evaluate_models.py --input-glob "./data/samples/*.pkl.gz" \
-    --models adaptive:train/checkpoints_clean_prod/Production_Scale_v2_HighCap_Corrected/checkpoint.pt \
-    --num-examples 5000 \
-    --output evaluate/results_adaptive.pickle
+python train/load_raw_predictions.py path/to/model_name_raw_predictions.pickle
 ```
 
-The `evaluate/` folder now holds notebooks revisiting the calibration sweep, activation inspection, and runner distribution plots. E.g., open `evaluate/Plot_Model_Results.ipynb` after running the evaluation script to generate the dashboards used in the writeup.
+When you open the notebooks in `evaluate/`, launch Jupyter from the repo root so that `train/` is already on `sys.path` (they append the parent directory as a fallback). This makes `from runtime_inference import ...` work consistently across scripts, notebooks, and CLI tools.
 
 ### Running on Lambda (GPU quickstart)
 
@@ -196,7 +198,7 @@ bash train/run-scripts/setup_lambda.sh
 # Run baselines / trainer / evaluation as above:
 bash train/run_xgboost_tuning.sh
 CONFIG=train/runtime_trainer_adaptive_sigma.yaml bash train/run_runtime_train.sh
-python train/evaluate_models.py --config evaluate/eval_config.yaml
+python train/evaluate_models.py --config train/evaluation_config_cluster.yaml
 ```
 
 `train/run-scripts/setup_lambda.sh` already installs system packages (python3-dev, pip) and user-level dependencies like torch, wandb, scipy, and optuna, so rerunning it after reboot ensures the Lambda env stays healthy.

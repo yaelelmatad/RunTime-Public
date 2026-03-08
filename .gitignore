@@ -4,6 +4,8 @@ train/checkpoints*/
 train/wandb/
 wandb/
 
+checkpoints*/
+
 # model checkpoints
 **/*.pt
 
