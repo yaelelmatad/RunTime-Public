@@ -14,11 +14,11 @@
 \titleformat*{\subsection}{\normalfont\large\bfseries}
 \begin{document}
 \begin{center}
- {\LARGE \bf Discrete Tokenization Unlocks Transformers for Calibrated Tabular Forecasting}\\[0.5em]
-  {\large Yael S. Elmatad}\\
+ {\LARGE \bf Discrete Tokenization Unlocks Transformers\\[0.4em]for Calibrated Tabular Forecasting}\\[1em]
+  {\large Yael S. Elmatad}\\[0.3em]
   {\small \href{mailto:yael.elmatad@gmail.com}{yael.elmatad@gmail.com}}
 \end{center}
-\vspace{-1em}
+\vspace{-0.5em}
 \noindent\textbf{Code:} \url{https://github.com/yaelelmatad/RunTime-Public}
 \section*{Abstract}
 Gradient boosting still dominates Transformers~\cite{vaswani2017attention} on tabular benchmarks. Our tokenizer uses a deliberately simplistic discretized vocabulary so we can highlight how even basic tokenization unlocks the power of attention on tabular features, yet it already outperforms tuned gradient boosting when combined with Gaussian smoothing. Our solution discretizes environmental context while smoothing labels with adaptive Gaussians, yielding calibrated PDFs. On 600K entities (5M training examples) we outperform tuned XGBoost~\cite{chen2016xgboost} by 10.8\% (35.94s vs 40.31s median MAE) and achieve KS=0.0045 with the adaptive-\(\sigma\) checkpoint selected to minimize KS rather than median MAE. Ablations confirm architecture matters: losing sequential ordering costs about 2.0\%, dropping the time-delta tokens costs about 1.8\%, and a stratified calibration analysis reveals where miscalibration persists.
