@@ -106,7 +106,14 @@ Note: the *conceptual* order is “hydration/tokenization → final dataset shar
 
 ### Evaluation notebooks (`evaluate/`)
 
-- `evaluate/Examine_Distribution_Quantile_Predictions.ipynb`: Load a trained checkpoint, replay inference on held-out splits, and inspect the predicted probability distributions — including quantile calibration (Q-Q), per-bin mass, and decile-level diagnostics. Launch Jupyter from the repo root so `train/` is on `sys.path`.
+- `evaluate/Examine_Distribution_Quantile_Predictions.ipynb`: Load a trained checkpoint, replay inference on held-out splits, and inspect predicted probability distributions — quantile calibration (Q-Q), per-bin mass, and decile-level diagnostics.
+- `evaluate/Example_Runtime_Inference.ipynb`: Minimal end-to-end example of loading a checkpoint and running inference on a few examples.
+- `evaluate/Inspect_Model_Outputs.ipynb`: Deep inspection of model outputs including XGBoost comparison and per-example prediction breakdowns.
+- `evaluate/Inspect_Model_Activations.ipynb`: Visualize attention weights and intermediate activations to understand what the model focuses on.
+- `evaluate/Plot_Model_Results.ipynb`: Generate the paper's main result plots (MAE curves, calibration figures).
+- `evaluate/Example_Runner_Trajectories.ipynb`: Plot individual runner career trajectories alongside model predictions.
+
+Launch Jupyter from the repo root so `train/` is on `sys.path` (notebooks append the parent directory as a fallback).
 
 ### Figures + paper artifacts
 
