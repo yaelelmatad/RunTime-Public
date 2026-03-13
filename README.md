@@ -1,8 +1,21 @@
 [![Stable](https://img.shields.io/badge/status-stable-green)](#)
 # Runtime (RunTime): Distributional Transformers for Irregular Event Sequences
+[![arXiv](https://img.shields.io/badge/arXiv-2603.07448-b31b1b.svg)](https://arxiv.org/abs/2603.07448)
 [![DOI](https://zenodo.org/badge/1139424380.svg)](https://doi.org/10.5281/zenodo.18370743)
 
-**Cite this work:** Yael S. Elmatad, *RunTime: Distributional Transformers for Irregular Event Sequences*, Zenodo (2026). https://doi.org/10.5281/zenodo.18370743
+**Paper:** [Discrete Tokenization Unlocks Transformers for Calibrated Tabular Forecasting](https://arxiv.org/abs/2603.07448)
+
+**Cite this work:**
+
+```bibtex
+@article{elmatad2026runtime,
+  title={Discrete Tokenization Unlocks Transformers for Calibrated Tabular Forecasting},
+  author={Elmatad, Yael S.},
+  journal={arXiv preprint arXiv:2603.07448},
+  year={2026},
+  url={https://arxiv.org/abs/2603.07448}
+}
+```
 
 RunTime is a causal Transformer for **calibrated distributional forecasting on irregular event sequences** (TPP-aligned). Unlike standard approaches that rely on continuous embeddings or point estimates, RunTime combines:
 
